@@ -23,9 +23,11 @@ if(NOT COMMAND reVC_platform_target)
 endif()
 
 if(WIN32)
-    set(${PROJECT}_AUDIOS "OAL" "MSS")
+    set(${PROJECT}_AUDIOS "OAL" "MSS" "NULL")
 else()
-    set(${PROJECT}_AUDIOS "OAL")
+    # NULL builds sampman_null.cpp — a silent engine. Useful on its own for bring-up, and the
+    # browser needs it while emscripten's OpenAL device init is being sorted out.
+    set(${PROJECT}_AUDIOS "OAL" "NULL")
 endif()
 
 set(${PROJECT}_AUDIO "OAL" CACHE STRING "Audio")

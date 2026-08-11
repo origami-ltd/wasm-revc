@@ -2,7 +2,8 @@ import "./style.css";
 import { ArchiveStreamer, allSupported, checkCapabilities, isHandheld } from "@wasm/runtime";
 import { mountGate } from "@origami-ltd/ui/gate";
 import {
-  folders, findInstallRoot, GAME_ROOT, INSTALL_KEY, readInstall, savedInstall, writeLooseFiles,
+  folders, findInstallRoot, GAME_ROOT, INSTALL_KEY, readInstall, readServedInstall, savedInstall,
+  writeLooseFiles,
 } from "./archives";
 import type { Install } from "./archives";
 import { el, INSTALL_HELP, render } from "./ui";
@@ -140,6 +141,17 @@ const config: Record<string, unknown> = {
     (instance: EmscriptenModule) => {
       instance.addRunDependency("vice-assets");
       void (async () => {
+        // ?install=server takes the install from the host instead of a picked folder
+        // (scripts/serve-web.py). Same code path from here on — the engine cannot tell.
+        if (query.get("install") === "server") {
+          await streamer.ready;
+          instance.FS.mkdirTree(GAME_ROOT);
+          await mountInstall(instance, await readServedInstall());
+          instance.FS.chdir(GAME_ROOT);
+          instance.removeRunDependency("vice-assets");
+          return;
+        }
+
         const root = await savedInstall();
         if (!root) {
           // ?engine=1 boots with an empty game directory. The engine cannot get far without
