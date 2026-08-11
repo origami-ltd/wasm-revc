@@ -12,7 +12,9 @@
 extern "C" {
 #endif // __cplusplus
 
-#ifndef AUDIO_OAL
+// DirectSound is the non-OpenAL path, and it only exists on Windows — a NULL-audio
+// build on any other platform must not drag dsound.h in.
+#if !defined(AUDIO_OAL) && defined(_WIN32)
 	#include <dsound.h>
 
 	/*

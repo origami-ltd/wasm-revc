@@ -3,6 +3,7 @@
 #
 #   scripts/build-web.sh          incremental
 #   scripts/build-web.sh clean    reconfigure from scratch
+#   REVC_AUDIO=NULL scripts/build-web.sh clean   silent build
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -10,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 emcmake cmake -S . -B build/web -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
-  -DREVC_AUDIO=OAL -DREVC_WITH_OPUS=OFF \
+  -DREVC_AUDIO="${REVC_AUDIO:-OAL}" -DREVC_WITH_OPUS=OFF \
   -DLIBRW_TOOLS=OFF -DLIBRW_INSTALL=OFF -DLIBRW_EXAMPLES=OFF
 
 ninja -C build/web

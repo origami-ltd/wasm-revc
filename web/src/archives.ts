@@ -63,17 +63,24 @@ export async function findInstallRoot(
   return undefined;
 }
 
+/** A small file, wherever it came from — the player's disk or the host. */
+export interface LooseFile {
+  path: string;
+  size: number;
+  read: () => Promise<Uint8Array>;
+}
+
 export interface Install {
   /** Big files, mounted through the streamer and read in chunks. */
   streamed: ArchiveEntry[];
   /** Everything else, small enough to sit in memory. */
-  loose: { path: string; handle: FileSystemFileHandle; size: number }[];
+  loose: LooseFile[];
 }
 
 /** Walk the install and sort every file into "stream it" or "load it". */
 export async function readInstall(root: FileSystemDirectoryHandle): Promise<Install> {
   const streamed: ArchiveEntry[] = [];
-  const loose: Install["loose"][number][] = [];
+  const loose: LooseFile[] = [];
 
   const visit = async (directory: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
     for await (const [name, handle] of directory.entries()) {
@@ -93,7 +100,12 @@ export async function readInstall(root: FileSystemDirectoryHandle): Promise<Inst
           handle: handle as FileSystemFileHandle,
         });
       } else {
-        loose.push({ path, handle: handle as FileSystemFileHandle, size: file.size });
+        const fileHandle = handle as FileSystemFileHandle;
+        loose.push({
+          path,
+          size: file.size,
+          read: async () => new Uint8Array(await (await fileHandle.getFile()).arrayBuffer()),
+        });
       }
     }
   };
@@ -105,7 +117,7 @@ export async function readInstall(root: FileSystemDirectoryHandle): Promise<Inst
     thousand reads and takes long enough that a silent page looks hung. */
 export async function writeLooseFiles(
   module: EmscriptenModule,
-  loose: Install["loose"],
+  loose: LooseFile[],
   onProgress: (done: number, total: number, path: string) => void = () => {},
 ): Promise<void> {
   const FS = module.FS;
@@ -119,8 +131,7 @@ export async function writeLooseFiles(
       FS.mkdirTree(directory);
       directories.add(directory);
     }
-    const bytes = new Uint8Array(await (await entry.handle.getFile()).arrayBuffer());
-    FS.writeFile(`${GAME_ROOT}/${entry.path}`, bytes);
+    FS.writeFile(`${GAME_ROOT}/${entry.path}`, await entry.read());
     onProgress(index + 1, loose.length, entry.path);
   }
 }
@@ -133,4 +144,40 @@ export async function savedInstall(): Promise<FileSystemDirectoryHandle | undefi
     console.debug("saved install unavailable", error);
     return undefined;
   }
+}
+
+/**
+ * The install served by the host instead of picked from disk (scripts/serve-web.py).
+ *
+ * Same split as a local install — big archives stream over HTTP Range, small files are pulled
+ * once and written into MEMFS — so the engine cannot tell the difference.
+ */
+export async function readServedInstall(base = ""): Promise<Install> {
+  const response = await fetch(`${base}/ViceAssets`);
+  const { entries, streamThreshold } = (await response.json()) as {
+    entries: { path: string; size: number }[];
+    streamThreshold: number;
+  };
+
+  const streamed: ArchiveEntry[] = [];
+  const loose: LooseFile[] = [];
+  for (const entry of entries) {
+    const url = `${base}/game/${entry.path}`;
+    if (entry.size >= streamThreshold) {
+      const slash = entry.path.lastIndexOf("/");
+      streamed.push({
+        mount: slash < 0 ? GAME_ROOT : `${GAME_ROOT}/${entry.path.slice(0, slash)}`,
+        name: entry.path.slice(slash + 1),
+        url,
+        size: entry.size,
+      });
+    } else {
+      loose.push({
+        path: entry.path,
+        size: entry.size,
+        read: async () => new Uint8Array(await (await fetch(url)).arrayBuffer()),
+      });
+    }
+  }
+  return { streamed, loose };
 }

@@ -51,6 +51,12 @@ using namespace re3_openal;
 
 void EFXInit()
 {
+#ifdef __EMSCRIPTEN__
+	// The browser's OpenAL has no EFX, and alGetProcAddress without a live context is an abort
+	// there — not a null return. Leaving the pointers null is exactly what the callers already
+	// handle, because they gate every EFX call on the extension being present.
+	return;
+#endif
 	/* Define a macro to help load the function pointers. */
 #define LOAD_PROC(T, x)  ((x) = (T)alGetProcAddress(#x))
 	LOAD_PROC(LPALGENEFFECTS, alGenEffects);
