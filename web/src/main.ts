@@ -1,0 +1,218 @@
+import "./style.css";
+import { ArchiveStreamer } from "@wasm/runtime";
+import {
+  folders, findInstallRoot, GAME_ROOT, INSTALL_KEY, readInstall, savedInstall, writeLooseFiles,
+} from "./archives";
+import type { Install } from "./archives";
+import { el, render } from "./ui";
+import type { EmscriptenModule, ModuleFactory } from "./types";
+
+render(el("app"));
+
+const canvas = el<HTMLCanvasElement>("canvas");
+const frame = el("frame");
+const stage = el("stage");
+const output = el<HTMLTextAreaElement>("output");
+const status = el("status");
+const detail = el("status-detail");
+const track = el("progress-track");
+const bar = el("progress-bar");
+const query = new URLSearchParams(location.search);
+
+let module: EmscriptenModule | undefined;
+
+/* ---------------------------------------------------------------- logging */
+const shownLines: string[] = [];
+
+function log(line: string): void {
+  shownLines.push(line);
+  if (shownLines.length > 512) shownLines.shift();
+  output.value = `${shownLines.join("\n")}\n`;
+  output.scrollTop = output.scrollHeight;
+}
+
+/** Everything the page is doing: headline, detail line, and a bar when there is a ratio. */
+function report(headline: string, note = "", ratio?: number): void {
+  if (headline) status.textContent = headline;
+  detail.textContent = note;
+  track.hidden = ratio === undefined;
+  if (ratio !== undefined) bar.style.width = `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%`;
+}
+
+const mb = (bytes: number): string => (bytes / 2 ** 20).toFixed(0);
+
+/* ------------------------------------------------------------- ring overlay */
+const holo = el("holo");
+const ringFill = document.getElementById("holo-ring-fill") as unknown as SVGCircleElement;
+
+function ring(ratio: number, note: string, file: string): void {
+  holo.hidden = false;
+  el("holo-percent").textContent = `${Math.floor(Math.min(1, ratio) * 100)}%`;
+  el("holo-mb").textContent = note;
+  el("holo-file").textContent = file;
+  ringFill.style.strokeDashoffset = String(339.292 * (1 - Math.min(1, ratio)));
+}
+
+/* ------------------------------------------------------------- letterboxing */
+// JS owns the fit: the engine controls the canvas backing size, which CSS max-% cannot contain.
+function fitCanvas(): void {
+  const fullscreen = document.fullscreenElement === frame;
+  const availableWidth = Math.min(fullscreen ? innerWidth : stage.clientWidth, innerWidth) - 16;
+  const availableHeight = Math.min(fullscreen ? innerHeight : stage.clientHeight, innerHeight) - 16;
+  const scale = Math.min(availableWidth / (canvas.width || 1), availableHeight / (canvas.height || 1));
+  canvas.style.width = `${Math.max(1, Math.floor((canvas.width || 1) * scale))}px`;
+  canvas.style.height = `${Math.max(1, Math.floor((canvas.height || 1) * scale))}px`;
+}
+new ResizeObserver(fitCanvas).observe(stage);
+new MutationObserver(fitCanvas).observe(canvas, { attributes: true, attributeFilter: ["width", "height"] });
+addEventListener("resize", fitCanvas);
+document.addEventListener("fullscreenchange", fitCanvas);
+
+// Fullscreen the frame, not the canvas, so overlays stay inside the fullscreened subtree.
+el("fullscreen").addEventListener("click", () => void frame.requestFullscreen().catch(() => {}));
+
+/* ------------------------------------------------------------------- sound */
+let soundMuted = localStorage.getItem("vice.soundMuted") === "1";
+
+function setSoundMuted(muted: boolean): void {
+  soundMuted = muted;
+  localStorage.setItem("vice.soundMuted", muted ? "1" : "0");
+  module?._ViceSetAudioMuted?.(muted ? 1 : 0);
+  el("sound").textContent = muted ? "Sound off" : "Sound on";
+}
+el("sound").addEventListener("click", () => setSoundMuted(!soundMuted));
+el("sound").textContent = soundMuted ? "Sound off" : "Sound on";
+
+el("reset").addEventListener("click", () => {
+  localStorage.clear();
+  folders.clear();
+  location.reload();
+});
+
+/* ------------------------------------------------------------ first-run gate */
+el("firstrun-info").addEventListener("click", () => {
+  const panel = el("firstrun-info-panel");
+  panel.hidden = !panel.hidden;
+});
+
+el("firstrun-folder").addEventListener("click", async () => {
+  const note = el("firstrun-folder-note");
+  const picker = (window as unknown as {
+    showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle>;
+  }).showDirectoryPicker;
+  if (!picker) {
+    note.textContent = "This browser cannot pick folders — use Chrome or Edge.";
+    return;
+  }
+  try {
+    const picked = await picker({ id: "wasm-vice-city-install", mode: "read" });
+    note.textContent = "Scanning…";
+    const root = await findInstallRoot(picked);
+    if (!root) {
+      note.textContent = "No Vice City install under that folder — it needs models/gta3.img and data/gta_vc.dat.";
+      return;
+    }
+    await folders.save(new Map([[INSTALL_KEY, root]]));
+    note.textContent = "Install found. Starting…";
+    setTimeout(() => location.replace(location.pathname), 700);
+  } catch (error) {
+    console.debug("folder selection cancelled", error);
+    note.textContent = "";
+  }
+});
+
+/* -------------------------------------------------------------------- boot */
+if (!crossOriginIsolated) {
+  // SharedArrayBuffer is what makes streaming possible; without a secure context there is no game.
+  report("Open this page over https:// — the browser blocks shared memory otherwise.");
+}
+
+// The capability chips only appear when something is actually wrong.
+el("cap-wasm").hidden = typeof WebAssembly === "object";
+el("cap-webgpu").hidden = "gpu" in navigator;
+
+const streamer = new ArchiveStreamer(log);
+
+/** Mount the install: the big archives stream, the small files are copied into MEMFS. */
+async function mountInstall(instance: EmscriptenModule, install: Install): Promise<void> {
+  for (const entry of install.streamed) streamer.mount(instance, entry);
+  const streamedBytes = install.streamed.reduce((sum, entry) => sum + entry.size, 0);
+  log(`Streaming ${install.streamed.length} archives (${mb(streamedBytes)} MB) on demand.`);
+
+  await writeLooseFiles(instance, install.loose, (done, total, path) => {
+    ring(done / total, `${done}/${total} files`, path);
+    report("Loading game files", path, done / total);
+  });
+  holo.hidden = true;
+  report("", "");
+  log(`Loaded ${install.loose.length} loose game files into memory.`);
+}
+
+const config: Record<string, unknown> = {
+  canvas,
+  arguments: [],
+  print: (line: string) => log(line),
+  printErr: (line: string) => log(line),
+  preRun: [
+    (instance: EmscriptenModule) => {
+      instance.addRunDependency("vice-assets");
+      void (async () => {
+        const root = await savedInstall();
+        if (!root) {
+          el("firstrun").hidden = false;
+          log("No install selected yet — waiting for the player to point at their copy.");
+          return; // dependency stays: no game files, no game
+        }
+        await streamer.ready;
+        instance.FS.mkdirTree(GAME_ROOT);
+        await mountInstall(instance, await readInstall(root));
+        instance.removeRunDependency("vice-assets");
+      })().catch((error: Error) => {
+        log(`Could not read the install: ${error.message}`);
+        el("firstrun").hidden = false;
+      });
+    },
+  ],
+};
+
+// main() never returns (it hands control to the browser main loop), so the factory promise never
+// settles — readiness comes from onRuntimeInitialized instead of awaiting it.
+config.onRuntimeInitialized = function (this: EmscriptenModule) {
+  module = this;
+  (globalThis as unknown as { __vice: EmscriptenModule }).__vice = this;
+  frame.dataset.ready = "true";
+  report("Running", "");
+  fitCanvas();
+  if (soundMuted) module._ViceSetAudioMuted?.(1);
+};
+
+report("Loading…");
+
+// ?assets=1 means the player came to repoint their install.
+if (query.get("assets") === "1") el("firstrun").hidden = false;
+
+// The emscripten build is produced by CMake and served next to this page. Until the reVC port
+// lands there is no /reVC.js: the shell still runs, so the install gate can be used and tested.
+// The URL goes through a variable on purpose — a literal makes Vite's import analysis try to
+// resolve it at dev time and fail the whole page before the port exists.
+const ENGINE_URL = "/reVC.js";
+const factory = await import(/* @vite-ignore */ ENGINE_URL)
+  .then((loaded) => (loaded as { default: ModuleFactory }).default)
+  .catch(() => undefined);
+
+if (!factory) {
+  report("Engine not built yet", "the reVC WebAssembly build is not on this host");
+  log("No /reVC.js on this host — build the emscripten target and serve it beside this page.");
+  if (!(await savedInstall())) el("firstrun").hidden = false;
+} else {
+  const play = el<HTMLButtonElement>("play");
+  play.hidden = false;
+  report("Ready", "Welcome back to the 80s");
+  // Chrome refuses to start an AudioContext without user activation, and the engine creates its
+  // device during init — so the runtime only starts once the player has clicked Play.
+  play.addEventListener("click", () => {
+    play.hidden = true;
+    report("Starting engine", "loading game data");
+    void factory(config);
+  }, { once: true });
+}
