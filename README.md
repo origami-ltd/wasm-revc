@@ -202,3 +202,30 @@ We don't feel like we're in a position to give this code a license.\
 The code should only be used for educational, documentation and modding purposes.\
 We do not encourage piracy or commercial use.\
 Please keep derivate work open source and give proper credit.
+
+## Browser build (wasm.com.br)
+
+    scripts/build-web.sh          # emscripten build -> web/public/reVC.{js,wasm}
+    scripts/extract-disc.py       # pull an install out of a CD image
+
+The page itself lives in `web/` and is an npm workspace of the
+[wasm.com.br monorepo](https://github.com/origami-ltd/wasm.com.br) — build it from there, not
+from here, so it can resolve the shared design system and streaming runtime.
+
+Port notes, all guarded so the native builds are untouched:
+
+- **librw** gets an `EMSCRIPTEN` branch: GL3 platform, `RW_GLES3`, SDL2 from emscripten's port,
+  no GLAD and no desktop OpenGL lookup. The renderer runs as GLES 3 on WebGL 2.
+- **CdStream** has a third implementation, `CdStream_emscripten.cpp`. The POSIX one queues reads
+  onto a worker thread and blocks the caller on a semaphore; a browser page has one thread and it
+  must never block on another. Reads happen inline instead — the archives are mounted as an FS
+  node whose read is already synchronous underneath (SharedArrayBuffer + a chunk-fetching worker).
+- **Game loop** keeps its blocking `while`, with one `emscripten_sleep(0)` per frame under
+  `-sASYNCIFY`. Nothing is presented until the page yields, and the yield sits at the top of the
+  frame — the only point on that stack with no `invoke_*` JS frame above it, which Asyncify
+  cannot unwind through.
+- **Audio** uses emscripten's OpenAL and its mpg123 port. There is no EFX extension in the
+  browser, so `AL/efx.h` is a local shim (`src/audio/oal/emscripten/`); reVC binds EFX through
+  `alGetProcAddress` behind an extension check that fails here, so the pointers stay null.
+  Consequence: no environmental reverb. Everything else works.
+- Fixed 1 GiB heap, no growth: growing it detaches the typed-array views WebGL holds.

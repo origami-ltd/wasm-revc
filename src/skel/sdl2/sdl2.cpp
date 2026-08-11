@@ -2,7 +2,13 @@
 
 long _dwOperatingSystemVersion;
 
+#ifndef __EMSCRIPTEN__
 #include <sys/sysinfo.h>
+#endif
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/heap.h>
+#endif
 #include <errno.h>
 #include <locale.h>
 #include <signal.h>
@@ -329,7 +335,12 @@ psInitialize(void)
     FrontEndMenuManager.LoadSettings();
 #endif
 
-#ifndef __APPLE__
+#if defined(__EMSCRIPTEN__)
+    // There is no OS to ask. The heap the module was linked with is the whole budget, and the
+    // engine only uses this to size its own pools.
+    _dwMemAvailPhys = (long)emscripten_get_heap_size();
+    debug("Wasm heap size %lu\n", (unsigned long)emscripten_get_heap_size());
+#elif !defined(__APPLE__)
     struct sysinfo systemInfo;
     sysinfo(&systemInfo);
     _dwMemAvailPhys = systemInfo.freeram;
@@ -1493,6 +1504,12 @@ main(int argc, char *argv[])
         while( !RsGlobal.quit && !FrontEndMenuManager.m_bWantToRestart && !SDL_QuitRequested())
 #endif
         {
+#ifdef __EMSCRIPTEN__
+            // Nothing is presented until control goes back to the browser, and a tab that never
+            // yields is a hung tab. Top of the frame is the one place on this stack with no
+            // invoke_* JS frame above us, which Asyncify cannot unwind through.
+            emscripten_sleep(0);
+#endif
             inputEventHandler();
 
 #ifndef MASTER

@@ -1,5 +1,7 @@
-find_package(Threads REQUIRED)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
+if(NOT EMSCRIPTEN)
+    find_package(Threads REQUIRED)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+endif()
 
 file(GLOB_RECURSE ${PROJECT}_SOURCES "*.cpp" "*.h" "*.rc")
 
@@ -28,8 +30,10 @@ endif()
 
 target_link_libraries(${EXECUTABLE} PRIVATE
     librw::librw
-    Threads::Threads
 )
+if(NOT EMSCRIPTEN)
+    target_link_libraries(${EXECUTABLE} PRIVATE Threads::Threads)
+endif()
 
 if(ANDROID)
     target_link_libraries(${EXECUTABLE} PRIVATE
@@ -37,6 +41,12 @@ if(ANDROID)
             GLESv3
             OpenSLES
     )
+endif()
+
+if(EMSCRIPTEN)
+    # AL/efx.h shim — emscripten's OpenAL has no effects extension. See the header.
+    target_include_directories(${EXECUTABLE} PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/audio/oal/emscripten")
 endif()
 
 target_include_directories(${EXECUTABLE}
@@ -83,7 +93,12 @@ else()
     target_compile_definitions(${EXECUTABLE} PRIVATE USE_OUR_VERSIONING)
 endif()
 
-if(${PROJECT}_AUDIO STREQUAL "OAL")
+if(${PROJECT}_AUDIO STREQUAL "OAL" AND EMSCRIPTEN)
+    # OpenAL is part of emscripten's JS runtime and mpg123 is one of its ports; both are flags,
+    # not packages, so there is nothing for find_package to locate.
+    target_link_options(${EXECUTABLE} PRIVATE "-lopenal")
+    target_compile_definitions(${EXECUTABLE} PRIVATE AUDIO_OAL)
+elseif(${PROJECT}_AUDIO STREQUAL "OAL")
     find_package(OpenAL REQUIRED)
     if(TARGET OpenAL::OpenAL)
         target_link_libraries(${EXECUTABLE} PRIVATE OpenAL::OpenAL)
@@ -99,10 +114,15 @@ elseif(${PROJECT}_AUDIO STREQUAL "MSS")
     target_link_libraries(${EXECUTABLE} PRIVATE MilesSDK::MilesSDK)
 endif()
 
-find_package(mpg123 REQUIRED)
-target_link_libraries(${EXECUTABLE} PRIVATE
-    MPG123::libmpg123
-)
+if(EMSCRIPTEN)
+    target_compile_options(${EXECUTABLE} PRIVATE "-sUSE_MPG123")
+    target_link_options(${EXECUTABLE} PRIVATE "-sUSE_MPG123")
+else()
+    find_package(mpg123 REQUIRED)
+    target_link_libraries(${EXECUTABLE} PRIVATE
+        MPG123::libmpg123
+    )
+endif()
 if(${PROJECT}_WITH_OPUS)
     find_package(opusfile REQUIRED)
     target_link_libraries(${EXECUTABLE} PRIVATE
@@ -225,3 +245,35 @@ if(${PROJECT}_INSTALL)
 endif()
 
 reVC_platform_target(${EXECUTABLE} INSTALL)
+
+if(EMSCRIPTEN)
+    # The browser build. Notes on the non-obvious ones:
+    #   MODULARIZE/EXPORT_ES6 — the shell does `import("/reVC.js")` and calls the default export,
+    #     the same shape the Generals port uses.
+    #   ASYNCIFY — the engine keeps its blocking game loop and yields once per frame; see the
+    #     emscripten_sleep in skel/sdl2/sdl2.cpp.
+    #   Fixed 1 GiB heap, no growth — growing the heap detaches the typed-array views WebGL and
+    #     the audio path hold, and this 2002 codebase casts pointers to signed ints anyway.
+    #   FULL_ES3 + WebGL 2 — librw's gl3 backend runs as GLES 3 here (RW_GLES3).
+    set_target_properties(${EXECUTABLE} PROPERTIES SUFFIX ".js")
+    target_link_options(${EXECUTABLE} PRIVATE
+        "-sMODULARIZE=1"
+        "-sEXPORT_ES6=1"
+        "-sEXPORT_NAME=createReVC"
+        "-sENVIRONMENT=web,worker"
+        "-sINITIAL_MEMORY=1073741824"
+        "-sALLOW_MEMORY_GROWTH=0"
+        "-sSTACK_SIZE=5242880"
+        "-sMIN_WEBGL_VERSION=2"
+        "-sMAX_WEBGL_VERSION=2"
+        "-sFULL_ES3=1"
+        "-sGL_ENABLE_GET_PROC_ADDRESS=1"
+        "-sASYNCIFY=1"
+        "-sASYNCIFY_STACK_SIZE=131072"
+        "-sFORCE_FILESYSTEM=1"
+        "-sEXIT_RUNTIME=0"
+        "-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,callMain,ccall,cwrap,addRunDependency,removeRunDependency"
+        "-sEXPORTED_FUNCTIONS=_main,_malloc,_free"
+        "-lidbfs.js"
+    )
+endif()
