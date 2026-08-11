@@ -1,10 +1,11 @@
 import "./style.css";
-import { ArchiveStreamer } from "@wasm/runtime";
+import { ArchiveStreamer, allSupported, checkCapabilities, isHandheld } from "@wasm/runtime";
+import { mountGate } from "@origami-ltd/ui/gate";
 import {
   folders, findInstallRoot, GAME_ROOT, INSTALL_KEY, readInstall, savedInstall, writeLooseFiles,
 } from "./archives";
 import type { Install } from "./archives";
-import { el, render } from "./ui";
+import { el, INSTALL_HELP, render } from "./ui";
 import type { EmscriptenModule, ModuleFactory } from "./types";
 
 render(el("app"));
@@ -90,47 +91,29 @@ el("reset").addEventListener("click", () => {
 });
 
 /* ------------------------------------------------------------ first-run gate */
-el("firstrun-info").addEventListener("click", () => {
-  const panel = el("firstrun-info-panel");
-  panel.hidden = !panel.hidden;
-});
+const capabilities = checkCapabilities("webgl2");
 
-el("firstrun-folder").addEventListener("click", async () => {
-  const note = el("firstrun-folder-note");
-  const picker = (window as unknown as {
-    showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle>;
-  }).showDirectoryPicker;
-  if (!picker) {
-    note.textContent = "This browser cannot pick folders — use Chrome or Edge.";
-    return;
-  }
-  try {
-    const picked = await picker({ id: "wasm-vice-city-install", mode: "read" });
-    note.textContent = "Scanning…";
+const gate = mountGate(el("firstrun"), {
+  game: "Grand Theft Auto: Vice City",
+  help: INSTALL_HELP,
+  capabilities,
+  handheld: isHandheld(),
+  pickerId: "wasm-vice-city-install",
+  onPick: async (picked) => {
     const root = await findInstallRoot(picked);
-    if (!root) {
-      note.textContent = "No Vice City install under that folder — it needs models/gta3.img and data/gta_vc.dat.";
-      return;
-    }
+    if (!root) return "No Vice City install under that folder — it needs models/gta3.img and data/gta_vc.dat.";
     await folders.save(new Map([[INSTALL_KEY, root]]));
-    note.textContent = "Install found. Starting…";
     setTimeout(() => location.replace(location.pathname), 700);
-  } catch (error) {
-    console.debug("folder selection cancelled", error);
-    note.textContent = "";
-  }
+    return undefined;
+  },
 });
 
-/* -------------------------------------------------------------------- boot */
-if (!crossOriginIsolated) {
-  // SharedArrayBuffer is what makes streaming possible; without a secure context there is no game.
-  report("Open this page over https:// — the browser blocks shared memory otherwise.");
+if (gate.blocked) {
+  gate.show();
+  report("Unsupported browser", "see what this page needs");
 }
 
-// The capability chips only appear when something is actually wrong.
-el("cap-wasm").hidden = typeof WebAssembly === "object";
-el("cap-webgpu").hidden = "gpu" in navigator;
-
+/* -------------------------------------------------------------------- boot */
 const streamer = new ArchiveStreamer(log);
 
 /** Mount the install: the big archives stream, the small files are copied into MEMFS. */
@@ -159,7 +142,7 @@ const config: Record<string, unknown> = {
       void (async () => {
         const root = await savedInstall();
         if (!root) {
-          el("firstrun").hidden = false;
+          gate.show();
           log("No install selected yet — waiting for the player to point at their copy.");
           return; // dependency stays: no game files, no game
         }
@@ -169,7 +152,7 @@ const config: Record<string, unknown> = {
         instance.removeRunDependency("vice-assets");
       })().catch((error: Error) => {
         log(`Could not read the install: ${error.message}`);
-        el("firstrun").hidden = false;
+        gate.show();
       });
     },
   ],
@@ -186,24 +169,26 @@ config.onRuntimeInitialized = function (this: EmscriptenModule) {
   if (soundMuted) module._ViceSetAudioMuted?.(1);
 };
 
-report("Loading…");
-
 // ?assets=1 means the player came to repoint their install.
-if (query.get("assets") === "1") el("firstrun").hidden = false;
+if (query.get("assets") === "1") gate.show();
 
 // The emscripten build is produced by CMake and served next to this page. Until the reVC port
 // lands there is no /reVC.js: the shell still runs, so the install gate can be used and tested.
 // The URL goes through a variable on purpose — a literal makes Vite's import analysis try to
 // resolve it at dev time and fail the whole page before the port exists.
 const ENGINE_URL = "/reVC.js";
-const factory = await import(/* @vite-ignore */ ENGINE_URL)
-  .then((loaded) => (loaded as { default: ModuleFactory }).default)
-  .catch(() => undefined);
+const factory = allSupported(capabilities)
+  ? await import(/* @vite-ignore */ ENGINE_URL)
+      .then((loaded) => (loaded as { default: ModuleFactory }).default)
+      .catch(() => undefined)
+  : undefined;
 
-if (!factory) {
+if (gate.blocked) {
+  // Nothing more to do: the gate is up and explains which requirement is missing.
+} else if (!factory) {
   report("Engine not built yet", "the reVC WebAssembly build is not on this host");
   log("No /reVC.js on this host — build the emscripten target and serve it beside this page.");
-  if (!(await savedInstall())) el("firstrun").hidden = false;
+  if (!(await savedInstall())) gate.show();
 } else {
   const play = el<HTMLButtonElement>("play");
   play.hidden = false;

@@ -5,6 +5,13 @@ import tailwindcss from "@tailwindcss/vite";
 // leave that import alone and resolve it at runtime.
 export default defineConfig({
   plugins: [tailwindcss()],
+  // SharedArrayBuffer needs a cross-origin-isolated page; the production host sets these too.
+  server: {
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,
