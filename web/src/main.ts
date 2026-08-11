@@ -142,6 +142,16 @@ const config: Record<string, unknown> = {
       void (async () => {
         const root = await savedInstall();
         if (!root) {
+          // ?engine=1 boots with an empty game directory. The engine cannot get far without
+          // assets, but it proves the wasm module, SDL, WebGL and the Asyncify yield all come
+          // up — which is the only thing that can be tested before a full install exists.
+          if (query.get("engine") === "1") {
+            instance.FS.mkdirTree(GAME_ROOT);
+            instance.FS.chdir(GAME_ROOT);
+            log("Engine smoke test: booting with no game files.");
+            instance.removeRunDependency("vice-assets");
+            return;
+          }
           gate.show();
           log("No install selected yet — waiting for the player to point at their copy.");
           return; // dependency stays: no game files, no game
@@ -149,6 +159,9 @@ const config: Record<string, unknown> = {
         await streamer.ready;
         instance.FS.mkdirTree(GAME_ROOT);
         await mountInstall(instance, await readInstall(root));
+        // The engine opens everything by relative path ("models/gta3.img", "DATA/GTA_VC.DAT"),
+        // so the install has to be the working directory.
+        instance.FS.chdir(GAME_ROOT);
         instance.removeRunDependency("vice-assets");
       })().catch((error: Error) => {
         log(`Could not read the install: ${error.message}`);
@@ -172,13 +185,15 @@ config.onRuntimeInitialized = function (this: EmscriptenModule) {
 // ?assets=1 means the player came to repoint their install.
 if (query.get("assets") === "1") gate.show();
 
-// The emscripten build is produced by CMake and served next to this page. Until the reVC port
-// lands there is no /reVC.js: the shell still runs, so the install gate can be used and tested.
-// The URL goes through a variable on purpose — a literal makes Vite's import analysis try to
-// resolve it at dev time and fail the whole page before the port exists.
+// The emscripten build is produced by CMake (scripts/build-web.sh) and served beside this page.
+// It has to stay invisible to the bundler: Vite rewrites even a @vite-ignore'd dynamic import of
+// a public/ path, and the engine is not something to bundle anyway. An indirect import through
+// Function() is a plain runtime fetch that Vite cannot see.
+// Absence is a normal state — the shell still runs so the install gate works before a build exists.
 const ENGINE_URL = "/reVC.js";
+const importEngine = new Function("url", "return import(url)") as (url: string) => Promise<unknown>;
 const factory = allSupported(capabilities)
-  ? await import(/* @vite-ignore */ ENGINE_URL)
+  ? await importEngine(ENGINE_URL)
       .then((loaded) => (loaded as { default: ModuleFactory }).default)
       .catch(() => undefined)
   : undefined;

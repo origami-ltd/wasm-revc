@@ -1,4 +1,4 @@
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 #include "common.h"
 #ifdef GTA_PC || GTA_MOBILE
 #include "crossplatform.h"
