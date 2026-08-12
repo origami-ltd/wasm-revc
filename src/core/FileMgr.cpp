@@ -35,6 +35,8 @@ static myFILE myfiles[NUMFILES];
 
 #ifdef __EMSCRIPTEN__
 extern "C" void ViceSyncSaves(void);
+/** Set when a file is opened for writing, so only real writes trigger a flush. */
+static bool gWroteFileSinceSync = false;
 #endif
 #define _getcwd getcwd
 
@@ -297,6 +299,10 @@ CFileMgr::LoadFile(const char *file, uint8 *buf, int maxlen, const char *mode)
 int
 CFileMgr::OpenFile(const char *file, const char *mode)
 {
+#ifdef __EMSCRIPTEN__
+	if (mode && (strchr(mode, 'w') || strchr(mode, 'a') || strchr(mode, '+')))
+		gWroteFileSinceSync = true;
+#endif
 	debug("CFileMgr::OpenFile: %s", file);
 	return myfopen(file, mode);
 }
@@ -337,9 +343,16 @@ CFileMgr::CloseFile(int fd)
 {
 	int result = myfclose(fd);
 #ifdef __EMSCRIPTEN__
-	// Every write in the game closes its file here, so this is the one place that catches saves,
-	// settings and stats alike without having to find each writer.
-	ViceSyncSaves();
+	// Only after something was actually written.
+	//
+	// This used to fire on every close, and the streamer opens and closes files continuously while
+	// the world loads around the player - so a flush to IndexedDB was being scheduled thousands of
+	// times during normal play, for reads that changed nothing. Saves, settings and stats are the
+	// only things worth persisting, and they are the only files opened for writing.
+	if (gWroteFileSinceSync) {
+		gWroteFileSinceSync = false;
+		ViceSyncSaves();
+	}
 #endif
 	return result;
 }
