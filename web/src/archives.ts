@@ -137,9 +137,11 @@ export async function writeLooseFiles(
 }
 
 /** The saved install from a previous visit, if the browser still grants access. */
-export async function savedInstall(): Promise<FileSystemDirectoryHandle | undefined> {
+export async function savedInstall(
+  options: { request?: boolean } = {},
+): Promise<FileSystemDirectoryHandle | undefined> {
   try {
-    return (await folders.load([INSTALL_KEY])).get(INSTALL_KEY);
+    return (await folders.load([INSTALL_KEY], options)).get(INSTALL_KEY);
   } catch (error) {
     console.debug("saved install unavailable", error);
     return undefined;

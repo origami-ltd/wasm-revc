@@ -35,6 +35,7 @@ const shell = createShell({
     ready: () => el("frame").dataset.ready === "true",
   },
   assetDependency: "vice-assets",
+  resumeSaved: () => savedInstall({ request: true }),
   mountPicked: async (instance, root) => {
     await streamer.ready;
     instance.FS.mkdirTree(GAME_ROOT);
