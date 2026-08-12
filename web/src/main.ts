@@ -277,6 +277,41 @@ if (gate.blocked) {
 /* -------------------------------------------------------------------- boot */
 const streamer = new ArchiveStreamer(log);
 
+/**
+ * Make the save directory durable.
+ *
+ * The engine writes saves, gta_vc.set and the stats file into `userfiles` under the install root.
+ * Everything else in the FS is MEMFS and dies with the tab, which is fine for game data the
+ * player already has on disk — but not for their progress. IDBFS keeps a copy in IndexedDB;
+ * syncfs(true) reads it back at boot, and the engine calls ViceSyncSaves() after each write to
+ * push it out again.
+ */
+async function mountSaves(instance: EmscriptenModule): Promise<void> {
+  const path = `${GAME_ROOT}/userfiles`;
+  try {
+    instance.FS.mkdirTree(path);
+    const FS = instance.FS as unknown as {
+      mount(fs: unknown, opts: object, path: string): void;
+      filesystems: { IDBFS?: unknown };
+      syncfs(populate: boolean, cb: (err?: Error) => void): void;
+    };
+    if (!FS.filesystems.IDBFS) {
+      log("No IDBFS in this build — saves will not survive a reload.");
+      return;
+    }
+    FS.mount(FS.filesystems.IDBFS, {}, path);
+    // populate: pull whatever IndexedDB already holds into the in-memory tree.
+    await new Promise<void>((resolve) => {
+      FS.syncfs(true, (err) => {
+        if (err) log(`Could not read saved games: ${err.message}`);
+        resolve();
+      });
+    });
+  } catch (error) {
+    log(`Saves are not persistent: ${(error as Error).message}`);
+  }
+}
+
 /** Mount the install: the big archives stream, the small files are copied into MEMFS. */
 async function mountInstall(instance: EmscriptenModule, install: Install): Promise<void> {
   for (const entry of install.streamed) streamer.mount(instance, entry);
@@ -316,6 +351,7 @@ const config: Record<string, unknown> = {
           await streamer.ready;
           instance.FS.mkdirTree(GAME_ROOT);
           await mountInstall(instance, await readServedInstall());
+          await mountSaves(instance);
           instance.FS.chdir(GAME_ROOT);
           instance.removeRunDependency("vice-assets");
           return;
@@ -340,6 +376,7 @@ const config: Record<string, unknown> = {
         await streamer.ready;
         instance.FS.mkdirTree(GAME_ROOT);
         await mountInstall(instance, await readInstall(root));
+        await mountSaves(instance);
         // The engine opens everything by relative path ("models/gta3.img", "DATA/GTA_VC.DAT"),
         // so the install has to be the working directory.
         instance.FS.chdir(GAME_ROOT);

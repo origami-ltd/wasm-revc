@@ -879,6 +879,12 @@ void _InputInitialiseJoys()
     PSGLOBAL(joy1id) = -1;
     PSGLOBAL(joy2id) = -1;
 
+    // librw only brings up SDL_INIT_VIDEO, and without the gamecontroller subsystem SDL emits no
+    // joystick events at all - so joysChangeCB never ran and gamepad1 stayed null however many
+    // pads were plugged in. In the browser this is what connects SDL to navigator.getGamepads().
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
+        debug("Could not start the gamepad subsystem: %s", SDL_GetError());
+
     // Load our gamepad mappings
     const char* EnvControlConfig = getenv("SDL_GAMECONTROLLERCONFIG_FILE");
 
@@ -899,6 +905,12 @@ void _InputInitialiseJoys()
                    "to GTA: Vice City directory. Some gamepads may not be recognized.\n",
                    SDL_GAMEPAD_DB_PATH);
         }
+#ifdef __EMSCRIPTEN__
+        // Browsers report every pad through one standard mapping, so anything the db misses is
+        // still usable - SDL's own default covers it.
+        else
+            debug("Loaded gamepad mappings from %s", SDL_GAMEPAD_DB_PATH);
+#endif
     }
 
     // TODO SDL2 the part below seems unnecessary SDL2 (at least on Linux), remove in the future
@@ -1574,6 +1586,24 @@ extern "C" EMSCRIPTEN_KEEPALIVE void ViceSetResolution(int w, int h)
     if (w == RsGlobal.maximumWidth && h == RsGlobal.maximumHeight) return;
     SDL_SetWindowSize(PSGLOBAL(window), w, h);
     resizeCB(w, h);
+}
+
+/*
+ * Flush the save directory to IndexedDB.
+ *
+ * userfiles is an IDBFS mount (see the shell): writes land in memory and are only durable once
+ * syncfs runs, so without this every save and every settings change dies with the tab. Debounced
+ * because the engine writes a save as a burst of small files and one flush covers the lot.
+ */
+extern "C" EMSCRIPTEN_KEEPALIVE void ViceSyncSaves(void)
+{
+    EM_ASM({
+        if (typeof FS === "undefined" || !FS.syncfs) return;
+        clearTimeout(Module.__viceSyncTimer);
+        Module.__viceSyncTimer = setTimeout(function () {
+            FS.syncfs(false, function (err) { if (err) console.warn("save sync failed", err); });
+        }, 400);
+    });
 }
 
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuFade(void)    { return FrontEndMenuManager.m_nMenuFadeAlpha; }

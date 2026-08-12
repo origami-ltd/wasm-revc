@@ -271,6 +271,7 @@ if(EMSCRIPTEN)
         "-sASYNCIFY=1"
         "-sASYNCIFY_STACK_SIZE=131072"
         "-sFORCE_FILESYSTEM=1"
+        "-lidbfs.js"
         "-sEXIT_RUNTIME=0"
         "-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,callMain,ccall,cwrap,addRunDependency,removeRunDependency"
         "-sEXPORTED_FUNCTIONS=_main,_malloc,_free,_ViceLogicFrame,_ViceScreenWidth,_ViceScreenHeight,_ViceRenderWidth,_ViceRenderHeight,_ViceRasterW,_ViceRasterH,_ViceGameState,_ViceMenuActive,_ViceMenuScreen,_ViceForeground,_ViceIconified,_ViceMouseX,_ViceMouseY,_ViceWindowW,_ViceWindowH,_ViceFrontendStage,_ViceIdleCount,_ViceMenuFade,_ViceFirstStart,_ViceTimeMs,_ViceLogicalFrames,_ViceSetResolution,_ViceDrawnMouseX,_ViceDrawnMouseY,_ViceStartGame,_ViceSkyTop,_ViceSkyBottom,_ViceAmbient,_ViceClockHours,_ViceClockMinutes"

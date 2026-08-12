@@ -32,6 +32,10 @@ static myFILE myfiles[NUMFILES];
 #include <dirent.h>
 #include <errno.h>
 #include <unistd.h>
+
+#ifdef __EMSCRIPTEN__
+extern "C" void ViceSyncSaves(void);
+#endif
 #define _getcwd getcwd
 
 // Case-insensitivity on linux (from https://github.com/OneSadCookie/fcaseopen)
@@ -331,7 +335,13 @@ CFileMgr::ReadLine(int fd, char *buf, int len)
 int
 CFileMgr::CloseFile(int fd)
 {
-	return myfclose(fd);
+	int result = myfclose(fd);
+#ifdef __EMSCRIPTEN__
+	// Every write in the game closes its file here, so this is the one place that catches saves,
+	// settings and stats alike without having to find each writer.
+	ViceSyncSaves();
+#endif
+	return result;
 }
 
 int
