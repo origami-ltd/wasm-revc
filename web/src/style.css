@@ -2,3 +2,9 @@
 /* Tokens, components and the Tailwind theme bridge, shared with wasm.com.br and the other ports.
    The neon Miami palette is data-brand="vice" (set on <html>) — see packages/ui. */
 @import "@origami-ltd/ui/theme.css";
+
+/* Tailwind v4 roots its automatic source detection at the app, so class names living in the
+   shared packages are invisible to it — the page chrome and the first-run gate came out with
+   their component classes but none of their utilities. These paths put them back in scope. */
+@source "../../../../packages/shell/src";
+@source "../../../../packages/ui/src";
