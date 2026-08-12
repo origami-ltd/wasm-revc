@@ -21,18 +21,5 @@
       ]
     }
   ],
-  "//7": "The old apex still resolves and still points here, so it is answered with a permanent redirect rather than a second copy of the site: one canonical host, and every existing link keeps working.",
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "vicecity.wasm.com.br"
-        }
-      ],
-      "destination": "https://revc.wasm.ltd/$1",
-      "permanent": true
-    }
-  ]
+  "//7": "The redirect from the old apex is deliberately not here yet: wasm.ltd does not resolve until its DNS records exist, and a redirect to a host that does not answer takes the live site down. Both old hosts still serve this project directly in the meantime. Put the redirects back the moment the new apex resolves."
 }
