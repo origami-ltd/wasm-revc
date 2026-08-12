@@ -226,6 +226,18 @@ psGrabScreen(RwCamera *pCamera)
 double
 psTimer(void)
 {
+#ifdef __EMSCRIPTEN__
+    /*
+     * The whole game clock, and it has to come from here.
+     *
+     * emscripten only implements CLOCK_REALTIME and CLOCK_MONOTONIC. CLOCK_MONOTONIC_RAW is
+     * *declared*, so the branch below compiles and is taken, but the call fails and leaves the
+     * timespec untouched — the clock then reads the same value forever. Everything the engine
+     * times off it stops: the frontend fade never leaves alpha 0, so the menu draws its black
+     * backdrop and nothing else, which looks exactly like a broken renderer and is not one.
+     */
+    return emscripten_get_now();
+#else
     struct timespec start;
 #if defined(CLOCK_MONOTONIC_RAW)
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -235,6 +247,7 @@ psTimer(void)
 	clock_gettime(CLOCK_MONOTONIC, &start);
 #endif
     return start.tv_sec * 1000.0 + start.tv_nsec/1000000.0;
+#endif
 }
 
 /*
@@ -1403,6 +1416,28 @@ void inputEventHandler() {
 /*
  *****************************************************************************
  */
+#ifdef __EMSCRIPTEN__
+/*
+ * Read-only probes for the page. C++ state is otherwise invisible from JavaScript, and the
+ * difference between "the menu is off-screen", "the menu is not active" and "the render path is
+ * skipped entirely" is impossible to tell apart from the outside — all three look like a black
+ * canvas with a cursor on it.
+ */
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceGameState(void)   { return gGameState; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuActive(void)  { return FrontEndMenuManager.m_bMenuActive; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuScreen(void)  { return FrontEndMenuManager.m_nCurrScreen; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceForeground(void)  { return ForegroundApp; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceIconified(void)   { return WindowIconified; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuFade(void)    { return FrontEndMenuManager.m_nMenuFadeAlpha; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceFirstStart(void)  { return FrontEndMenuManager.m_firstStartCounter; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceTimeMs(void)      { return (int)CTimer::GetTimeInMillisecondsPauseMode(); }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceLogicalFrames(void) { return (int)CTimer::GetLogicalFramesPassed(); }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseX(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseY(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosY; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceWindowW(void)     { int w=0,h=0; SDL_GetWindowSize(PSGLOBAL(window), &w, &h); return w; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceWindowH(void)     { int w=0,h=0; SDL_GetWindowSize(PSGLOBAL(window), &w, &h); return h; }
+#endif
+
 int
 main(int argc, char *argv[])
 {

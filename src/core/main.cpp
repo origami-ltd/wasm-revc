@@ -1,3 +1,6 @@
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "common.h"
 #include <time.h>
 #include "rpmatfx.h"
@@ -1703,9 +1706,19 @@ Idle(void *arg)
 popret:	POP_MEMID();	// MEMID_RENDER
 }
 
+#ifdef __EMSCRIPTEN__
+int gViceFrontendStage = 0;
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceFrontendStage(void) { return gViceFrontendStage; }
+#endif
+
 void
 FrontendIdle(void)
 {
+#ifdef __EMSCRIPTEN__
+    // How far the frontend frame actually gets. A black canvas looks identical whether Process()
+    // never ran, the camera refused to begin, or RenderMenus drew nothing — this tells them apart.
+    gViceFrontendStage = 1;
+#endif
 	CDraw::CalculateAspectRatio();
 	CTimer::Update();
 	CSprite2d::SetRecipNearClip(); // this should be on InitialiseRenderWare according to PS2 asm. seems like a bug fix
@@ -1713,6 +1726,9 @@ FrontendIdle(void)
 	CFont::InitPerFrame();
 	CPad::UpdatePads();
 	FrontEndMenuManager.Process();
+#ifdef __EMSCRIPTEN__
+    gViceFrontendStage = 2;
+#endif
 
 	if(RsGlobal.quit)
 		return;
@@ -1722,9 +1738,15 @@ FrontendIdle(void)
 	RwCameraClear(Scene.camera, &gColourTop, CLEARMODE);
 	if(!RsCameraBeginUpdate(Scene.camera))
 		return;
+#ifdef __EMSCRIPTEN__
+    gViceFrontendStage = 3;
+#endif
 
 	DefinedState(); // seems redundant, but breaks resolution change.
 	RenderMenus();
+#ifdef __EMSCRIPTEN__
+    gViceFrontendStage = 4;
+#endif
 #ifdef XBOX_MESSAGE_SCREEN
 	FrontEndMenuManager.DrawOverlays();
 #endif
