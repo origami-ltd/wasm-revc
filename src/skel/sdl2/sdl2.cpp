@@ -1461,6 +1461,18 @@ extern "C" EMSCRIPTEN_KEEPALIVE int ViceLogicalFrames(void) { return (int)CTimer
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseX(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosX; }
 /* Sky and ambient as the timecycle currently computes them. If these come back grey (R==G==B)
    the timecycle is the problem; if they are colourful and the screen is not, the renderer is. */
+/* Leave the frontend without going through the menu. The game loop drops out of GS_FRONTEND the
+   moment the menu stops being active, which is all "Start Game" ultimately does — and it makes
+   the in-game state reachable from a test that cannot click. */
+extern "C" EMSCRIPTEN_KEEPALIVE void ViceStartGame(void) {
+    FrontEndMenuManager.m_bMenuActive = false;
+    // The menu pauses the timer when it opens (CMenuManager::Initialise), and the normal exit
+    // path is what ends that pause. Skipping straight past the menu leaves the game paused:
+    // it renders, but CClock, CWeather and CTimeCycle never tick, so the world sits unlit and
+    // frozen — which looks exactly like a broken renderer.
+    CTimer::EndUserPause();
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceSkyTop(void) {
     return (CTimeCycle::GetSkyTopRed() << 16) | (CTimeCycle::GetSkyTopGreen() << 8) | CTimeCycle::GetSkyTopBlue();
 }
@@ -1471,6 +1483,10 @@ extern "C" EMSCRIPTEN_KEEPALIVE int ViceAmbient(void) {
     return ((int)CTimeCycle::GetAmbientRed() << 16) | ((int)CTimeCycle::GetAmbientGreen() << 8) | (int)CTimeCycle::GetAmbientBlue();
 }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceClockHours(void) { return CClock::GetHours(); }
+/* Minutes advancing is the test for whether CGame::Process runs at all — the timecycle update
+   lives inside it, so a frozen clock and empty colours would have one cause, not two. */
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceClockMinutes(void) { return CClock::GetMinutes(); }
+
 
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceDrawnMouseX(void) { return (int)FrontEndMenuManager.m_nMousePosX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceDrawnMouseY(void) { return (int)FrontEndMenuManager.m_nMousePosY; }

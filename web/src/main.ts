@@ -126,14 +126,23 @@ const streamer = new ArchiveStreamer(log);
 /** Mount the install: the big archives stream, the small files are copied into MEMFS. */
 async function mountInstall(instance: EmscriptenModule, install: Install): Promise<void> {
   for (const entry of install.streamed) streamer.mount(instance, entry);
-  const streamedBytes = install.streamed.reduce((sum, entry) => sum + entry.size, 0);
-  log(`Streaming ${install.streamed.length} archives (${mb(streamedBytes)} MB) on demand.`);
+  log(`Mounted ${install.streamed.length} archives.`);
 
   // One progress indicator, the bar in the status strip. A second one over the canvas said the
   // same thing twice.
   await writeLooseFiles(instance, install.loose, (done, total, path) => {
     report("Loading game files", `${path} · ${done}/${total}`, done / total);
   });
+
+  // Pull the big archives through the network into the browser's own disk cache before the game
+  // opens. The engine reads them synchronously — the main thread spin-waits on every read — so a
+  // cold cache turns world streaming into thousands of blocking round trips and a frame can take
+  // seconds. Primed, those same reads are local. Nothing is retained in JS: prime reads and drops.
+  const streamedBytes = install.streamed.reduce((sum, entry) => sum + entry.size, 0);
+  await streamer.prime(install.streamed, (done, name) => {
+    report("Caching archives", `${name} · ${mb(done)}/${mb(streamedBytes)} MB`, done / streamedBytes);
+  });
+  log("Archives cached locally; reads no longer touch the network.");
   report("", "");
   log(`Loaded ${install.loose.length} loose game files into memory.`);
 }
