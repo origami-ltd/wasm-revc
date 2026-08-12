@@ -38,6 +38,9 @@ export function render(root: HTMLElement): void {
           </div>
         </div>
         <div class="flex w-full min-w-0 flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
+          <label class="flex items-center gap-2 text-sm text-muted"><span class="hidden lg:inline">Display</span>
+            <select id="aspect" class="ogx-hud-select"><option value="16:9">16:9</option><option value="4:3">4:3</option></select>
+          </label>
           <button id="sound" class="ogx-hud-button whitespace-nowrap">Sound on</button>
           <button id="fullscreen" class="ogx-hud-button whitespace-nowrap">Fullscreen</button>
           <button id="reset" class="ogx-hud-button whitespace-nowrap" title="Forget the saved install and reload">Reset</button>
@@ -52,23 +55,6 @@ export function render(root: HTMLElement): void {
             <span class="ogx-panel px-10 py-5 text-2xl uppercase tracking-[0.2em]"
                   style="--ogx-panel-surface: var(--raised)">Play</span>
           </button>
-
-          <!-- Loading the install: one ring, one number, one line. -->
-          <div id="holo" hidden class="absolute inset-0 z-[8] grid place-items-center bg-bg/97">
-            <div class="grid justify-items-center gap-4">
-              <div class="ogx-ring-wrap">
-                <svg class="ogx-ring" viewBox="0 0 120 120" aria-hidden="true">
-                  <circle class="ogx-ring-track" cx="60" cy="60" r="54"></circle>
-                  <circle id="holo-ring-fill" class="ogx-ring-fill" cx="60" cy="60" r="54"></circle>
-                </svg>
-                <div class="ogx-ring-center">
-                  <div id="holo-percent" class="ogx-ring-percent">0%</div>
-                  <div id="holo-mb" class="ogx-ring-note mt-1">reading your install…</div>
-                </div>
-              </div>
-              <div id="holo-file" class="ogx-ring-file">&nbsp;</div>
-            </div>
-          </div>
 
           <img id="cursor-overlay" alt="" hidden class="pointer-events-none fixed left-0 top-0 z-[5] [image-rendering:pixelated]">
 
