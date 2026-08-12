@@ -11,6 +11,14 @@ import type { EmscriptenModule, ModuleFactory } from "./types";
 
 let module: EmscriptenModule | undefined;
 
+/**
+ * The saved install, re-granted on the Play click.
+ *
+ * The permission has to be asked for inside a gesture, and Play is one — so it is asked for there
+ * and the answer awaited here, rather than asking during page load where it can only fail.
+ */
+let resumed: Promise<FileSystemDirectoryHandle | undefined> = Promise.resolve(undefined);
+
 
 /** Gameplay, as opposed to the frontend menus — the state that wants the pointer captured. */
 const GS_PLAYING_GAME = 9;
@@ -136,7 +144,7 @@ const config: Record<string, unknown> = {
         // A dev host serves the install itself and publishes /ViceAssets; a static host does not.
         // Asking costs one request and means the page needs no flag to find what is already there.
         const served = await hostInstall("/ViceAssets", readServedInstall, log);
-        const root = served ? undefined : await savedInstall();
+        const root = served ? undefined : await resumed;
 
         if (!served && !root) {
           // ?engine=1 boots with an empty game directory. The engine cannot get far without
@@ -212,6 +220,11 @@ if (gate.blocked) {
   play.addEventListener("click", () => {
     play.hidden = true;
     status.report("Starting engine", "loading game data");
+    // Re-grant the saved folder here, first thing, while this click still counts as a user
+    // gesture — requestPermission is refused without one. Doing it now means a returning player
+    // never sees the gate at all: the folder they chose last time is simply open again.
+    // Not awaited before starting the engine; preRun awaits the same promise.
+    resumed = savedInstall({ request: true }).catch(() => undefined);
     void factory(config);
   }, { once: true });
 }
