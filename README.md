@@ -1,15 +1,15 @@
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-ebellumat-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/ebellumat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![WebAssembly](https://img.shields.io/badge/WebAssembly-WebGL%202-654ff0?logo=webassembly&logoColor=white)](https://vicecity.wasm.com.br)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-WebGL%202-654ff0?logo=webassembly&logoColor=white)](https://revc.wasm.ltd)
 
-# Vice City Web — Grand Theft Auto: Vice City in the browser
+# reVC Web — the reVC decompilation in the browser
 
-**Play it: [vicecity.wasm.com.br](https://vicecity.wasm.com.br)** — bring your own
+**Play it: [revc.wasm.ltd](https://revc.wasm.ltd)** — bring your own
 installed copy of the game. The release *is* the site; there is nothing to download.
 
-## The wasm.com.br initiative
+## The wasm.ltd initiative
 
-**wasm.com.br** is a preservation and portability initiative for games that have already been
+**wasm.ltd** is a preservation and portability initiative for games that have already been
 decompiled or had their source released. Once a game's code exists again, it deserves to run on
 the one platform that needs no installer, no emulator setup and no operating system loyalty:
 the browser.
@@ -61,14 +61,14 @@ brew install emscripten cmake
 # engine → reVC.{js,wasm}
 REVC_AUDIO=OAL ./scripts/build-web.sh
 
-# page (TypeScript + Tailwind), from the wasm.com.br workspace root
+# page (TypeScript + Tailwind), from the wasm.ltd workspace root
 npm run build --workspace @wasm/vice-web
 
 # serve it locally
 ./scripts/serve-web.py --install ~/GTAVC
 ```
 
-Requirements to play: a browser with WebGL 2 and SharedArrayBuffer, an installed copy of GTA: Vice City, and HTTPS —
+Requirements to play: a browser with WebGL 2 and SharedArrayBuffer, your own installed copy of the game, and HTTPS —
 SharedArrayBuffer demands a cross-origin-isolated secure context (`localhost` is exempt).
 
 ## How to contribute
@@ -79,7 +79,7 @@ SharedArrayBuffer demands a cross-origin-isolated secure context (`localhost` is
 
 ## Support this project
 
-- **[Buy me a coffee](https://buymeacoffee.com/ebellumat)** — supports the wasm.com.br initiative
+- **[Buy me a coffee](https://buymeacoffee.com/ebellumat)** — supports the wasm.ltd initiative
 
 ## License
 
@@ -148,5 +148,5 @@ choice, and this document exists so the choice can be made deliberately.
 
 ---
 
-A project by [Origami 限](https://origami.ltd) · part of **wasm.com.br** ·
+A project by [Origami 限](https://origami.ltd) · part of **wasm.ltd** ·
 WebAssembly port by **Erasmo "ebellumat" Bellumat** — [github.com/ebellumat](https://github.com/ebellumat)

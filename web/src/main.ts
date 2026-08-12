@@ -26,9 +26,9 @@ const inGameplay = (): boolean => module?._ViceGameState?.() === GS_PLAYING_GAME
 
 const shell = createShell({
   key: "vice",
-  title: "Vice City",
+  title: "reVC",
   subtitle: "WebAssembly + WebGL 2",
-  game: "Grand Theft Auto: Vice City",
+  game: "reVC",
   gpu: "webgl2",
   heapBytes: 1024 ** 3, // -sINITIAL_MEMORY=1073741824 in src/CMakeLists.txt
   help: INSTALL_HELP,
@@ -55,7 +55,7 @@ const shell = createShell({
   onReset: () => folders.clear(),
   onPick: async (picked) => {
     const root = await findInstallRoot(picked);
-    if (!root) return "No Vice City install under that folder — it needs models/gta3.img and data/gta_vc.dat.";
+    if (!root) return "No supported install under that folder — it needs models/gta3.img and data/gta_vc.dat.";
     await folders.save(new Map([[INSTALL_KEY, root]]));
     return undefined;
   },

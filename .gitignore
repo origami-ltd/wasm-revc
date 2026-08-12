@@ -361,7 +361,7 @@ codewarrior/Release/
 codewarrior/Debug/
 
 src/extras/GitSHA1.cpp
-# Browser shell (npm workspace, built from the wasm.com.br monorepo)
+# Browser shell (npm workspace, built from the wasm.ltd monorepo)
 web/node_modules
 web/dist
 build/

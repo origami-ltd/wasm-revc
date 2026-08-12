@@ -1,5 +1,5 @@
 @import "tailwindcss";
-/* Tokens, components and the Tailwind theme bridge, shared with wasm.com.br and the other ports.
+/* Tokens, components and the Tailwind theme bridge, shared with wasm.ltd and the other ports.
    The neon Miami palette is data-brand="vice" (set on <html>) — see packages/ui. */
 @import "@origami-ltd/ui/theme.css";
 
