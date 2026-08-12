@@ -442,6 +442,9 @@ psTerminate(void)
  */
 static RwChar **_VMList;
 
+#include <unistd.h>
+#include <malloc.h>
+
 #ifdef __EMSCRIPTEN__
 extern "C" void ViceSetResolution(int w, int h);
 
@@ -1595,6 +1598,18 @@ extern "C" EMSCRIPTEN_KEEPALIVE void ViceSetResolution(int w, int h)
  * syncfs runs, so without this every save and every settings change dies with the tab. Debounced
  * because the engine writes a save as a burst of small files and one flush covers the lot.
  */
+// How much the allocator is actually holding, which is the number that decides how small
+// -sINITIAL_MEMORY can safely be: reserving a gigabyte the game never touches is what keeps this
+// off iOS, where a tab is capped well below that.
+//
+// Not sbrk(0) - emscripten's dlmalloc does not move the program break, so that reads back a
+// constant (the end of static data) however much is allocated, which reads like a 27 MB game.
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceHeapUsed(void)
+{
+    struct mallinfo info = mallinfo();
+    return (int)info.uordblks;
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE void ViceSyncSaves(void)
 {
     EM_ASM({
