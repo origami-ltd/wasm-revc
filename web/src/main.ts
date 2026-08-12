@@ -1,6 +1,6 @@
 import "./style.css";
 import { ArchiveStreamer, allSupported } from "@wasm/runtime";
-import { createShell, el, mb } from "@wasm/shell";
+import { createShell, el, hostInstall, mb, query } from "@wasm/shell";
 import {
   folders, findInstallRoot, GAME_ROOT, INSTALL_KEY, readInstall, readServedInstall, savedInstall,
   writeLooseFiles,
@@ -8,8 +8,6 @@ import {
 import type { Install } from "./archives";
 import { INSTALL_HELP } from "./ui";
 import type { EmscriptenModule, ModuleFactory } from "./types";
-
-const query = new URLSearchParams(location.search);
 
 let module: EmscriptenModule | undefined;
 
@@ -25,6 +23,7 @@ const shell = createShell({
   gpu: "webgl2",
   heapBytes: 1024 ** 3, // -sINITIAL_MEMORY=1073741824 in src/CMakeLists.txt
   help: INSTALL_HELP,
+  repo: "origami-ltd/wasm-vice-city",
   logEndpoint: "/ViceLog",
   frame: () => module?._ViceLogicFrame?.(),
   applyMute: (muted) => module?._ViceSetAudioMuted?.(muted ? 1 : 0),
@@ -104,7 +103,8 @@ async function mountSaves(instance: EmscriptenModule): Promise<void> {
 /** Mount the install: the big archives stream, the small files are copied into MEMFS. */
 async function mountInstall(instance: EmscriptenModule, install: Install): Promise<void> {
   for (const entry of install.streamed) streamer.mount(instance, entry);
-  log(`Streaming ${install.streamed.length} archives (${mb(install.streamedBytes)} MB) on demand.`);
+  const streamedBytes = install.streamed.reduce((sum, entry) => sum + entry.size, 0);
+  log(`Streaming ${install.streamed.length} archives (${mb(streamedBytes)} MB) on demand.`);
   await writeLooseFiles(instance, install.loose, (done, total) => {
     status.report("Loading game files", `${done}/${total}`, done / total);
   });
@@ -120,24 +120,17 @@ const config: Record<string, unknown> = {
     (instance: EmscriptenModule) => {
       instance.addRunDependency("vice-assets");
       void (async () => {
-        // ?install=server takes the install from the host instead of a picked folder
-        // (scripts/serve-web.py). Same code path from here on — the engine cannot tell.
-        if (query.get("install") === "server") {
-          await streamer.ready;
-          instance.FS.mkdirTree(GAME_ROOT);
-          await mountInstall(instance, await readServedInstall());
-          await mountSaves(instance);
-          instance.FS.chdir(GAME_ROOT);
-          instance.removeRunDependency("vice-assets");
-          return;
-        }
+        // A dev host serves the install itself and publishes /ViceAssets; a static host does not.
+        // Asking is what removes the need for a flag — this used to require ?install=server, so a
+        // link that worked on the other page did nothing here.
+        const served = await hostInstall("/ViceAssets", readServedInstall, log);
+        const root = served ? undefined : await savedInstall();
 
-        const root = await savedInstall();
-        if (!root) {
+        if (!served && !root) {
           // ?engine=1 boots with an empty game directory. The engine cannot get far without
           // assets, but it proves the wasm module, SDL, WebGL and the Asyncify yield all come
           // up — which is the only thing that can be tested before a full install exists.
-          if (query.get("engine") === "1") {
+          if (query.engineOnly) {
             instance.FS.mkdirTree(GAME_ROOT);
             instance.FS.chdir(GAME_ROOT);
             log("Engine smoke test: booting with no game files.");
@@ -148,9 +141,10 @@ const config: Record<string, unknown> = {
           log("No install selected yet — waiting for the player to point at their copy.");
           return; // dependency stays: no game files, no game
         }
+
         await streamer.ready;
         instance.FS.mkdirTree(GAME_ROOT);
-        await mountInstall(instance, await readInstall(root));
+        await mountInstall(instance, served ?? await readInstall(root as FileSystemDirectoryHandle));
         await mountSaves(instance);
         // The engine opens everything by relative path ("models/gta3.img", "DATA/GTA_VC.DAT"),
         // so the install has to be the working directory.
@@ -176,7 +170,7 @@ config.onRuntimeInitialized = function (this: EmscriptenModule) {
 };
 
 // ?assets=1 means the player came to repoint their install.
-if (query.get("assets") === "1") gate.show();
+if (query.pickInstall) gate.show();
 
 // The emscripten build is produced by CMake (scripts/build-web.sh) and served beside this page.
 // It has to stay invisible to the bundler: Vite rewrites even a @vite-ignore'd dynamic import of
