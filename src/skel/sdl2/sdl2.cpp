@@ -1389,7 +1389,12 @@ windowIconifyCB(int iconified) {
 void inputEventHandler() {
     SDL_Event event;
 
-    if (SDL_PollEvent(&event)) {
+    // Drain the queue, do not sip from it. Taking a single event per frame is survivable on a
+    // desktop, where the queue is usually near-empty; in a browser the pointer produces a steady
+    // stream of motion events, so a key press ends up behind a permanent backlog and is dequeued
+    // seconds late or never. Symptom: the cursor moves perfectly and no key or click ever
+    // registers.
+    while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_KEYDOWN:	/* fall-through */
             case SDL_KEYUP:
