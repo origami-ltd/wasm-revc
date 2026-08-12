@@ -43,17 +43,15 @@ function report(headline: string, note = "", ratio?: number): void {
 
 const mb = (bytes: number): string => (bytes / 2 ** 20).toFixed(0);
 
-/* ------------------------------------------------------------- ring overlay */
-const holo = el("holo");
-const ringFill = document.getElementById("holo-ring-fill") as unknown as SVGCircleElement;
-
-function ring(ratio: number, note: string, file: string): void {
-  holo.hidden = false;
-  el("holo-percent").textContent = `${Math.floor(Math.min(1, ratio) * 100)}%`;
-  el("holo-mb").textContent = note;
-  el("holo-file").textContent = file;
-  ringFill.style.strokeDashoffset = String(339.292 * (1 - Math.min(1, ratio)));
-}
+/* ------------------------------------------------------------------ display */
+// 16:9 is 1280x720, 4:3 is 1024x768. The engine reads this at startup (see psSelectDevice) so
+// picking one costs a reload rather than a mid-session device reset.
+const aspect = el<HTMLSelectElement>("aspect");
+aspect.value = localStorage.getItem("vice.aspect") === "4:3" ? "4:3" : "16:9";
+aspect.addEventListener("change", () => {
+  localStorage.setItem("vice.aspect", aspect.value);
+  location.reload();
+});
 
 /* ------------------------------------------------------------- letterboxing */
 /**
@@ -66,7 +64,9 @@ function fitCanvas(): void {
   const fullscreen = document.fullscreenElement === frame;
   const availableWidth = Math.min(fullscreen ? innerWidth : stage.clientWidth, innerWidth) - 16;
   const availableHeight = Math.min(fullscreen ? innerHeight : stage.clientHeight, innerHeight) - 16;
-  const scale = Math.min(availableWidth / (canvas.width || 1), availableHeight / (canvas.height || 1));
+  // Capped at 1: past its render resolution the game is just a blurry upscale, and the
+  // Fullscreen button is the deliberate way to go bigger.
+  const scale = Math.min(availableWidth / (canvas.width || 1), availableHeight / (canvas.height || 1), 1);
   canvas.style.width = `${Math.max(1, Math.floor((canvas.width || 1) * scale))}px`;
   canvas.style.height = `${Math.max(1, Math.floor((canvas.height || 1) * scale))}px`;
 }
@@ -129,11 +129,11 @@ async function mountInstall(instance: EmscriptenModule, install: Install): Promi
   const streamedBytes = install.streamed.reduce((sum, entry) => sum + entry.size, 0);
   log(`Streaming ${install.streamed.length} archives (${mb(streamedBytes)} MB) on demand.`);
 
+  // One progress indicator, the bar in the status strip. A second one over the canvas said the
+  // same thing twice.
   await writeLooseFiles(instance, install.loose, (done, total, path) => {
-    ring(done / total, `${done}/${total} files`, path);
-    report("Loading game files", path, done / total);
+    report("Loading game files", `${path} · ${done}/${total}`, done / total);
   });
-  holo.hidden = true;
   report("", "");
   log(`Loaded ${install.loose.length} loose game files into memory.`);
 }

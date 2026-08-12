@@ -743,10 +743,18 @@ psSelectDevice()
      * psPostRWinit sizes the canvas to match. The page scales it to fit, so this is the render
      * resolution, not the display size.
      */
-    RsGlobal.maximumWidth = RsGlobal.width = 1280;
-    RsGlobal.maximumHeight = RsGlobal.height = 720;
-    FrontEndMenuManager.m_nPrefsWidth = 1280;
-    FrontEndMenuManager.m_nPrefsHeight = 720;
+    // The page owns the aspect choice. Reading it here, before the device exists, means picking
+    // one costs a reload instead of a mid-session device reset.
+    int wantFourThree = EM_ASM_INT({
+        try { return localStorage.getItem("vice.aspect") === "4:3" ? 1 : 0; } catch (e) { return 0; }
+    });
+    const int chosenW = wantFourThree ? 1024 : 1280;
+    const int chosenH = wantFourThree ? 768 : 720;
+
+    RsGlobal.maximumWidth = RsGlobal.width = chosenW;
+    RsGlobal.maximumHeight = RsGlobal.height = chosenH;
+    FrontEndMenuManager.m_nPrefsWidth = chosenW;
+    FrontEndMenuManager.m_nPrefsHeight = chosenH;
     FrontEndMenuManager.m_nPrefsWindowed = 1;
     PSGLOBAL(fullScreen) = FALSE;
 #endif
@@ -1444,6 +1452,8 @@ extern "C" EMSCRIPTEN_KEEPALIVE int ViceFirstStart(void)  { return FrontEndMenuM
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceTimeMs(void)      { return (int)CTimer::GetTimeInMillisecondsPauseMode(); }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceLogicalFrames(void) { return (int)CTimer::GetLogicalFramesPassed(); }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseX(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceDrawnMouseX(void) { return (int)FrontEndMenuManager.m_nMousePosX; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceDrawnMouseY(void) { return (int)FrontEndMenuManager.m_nMousePosY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseY(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceWindowW(void)     { int w=0,h=0; SDL_GetWindowSize(PSGLOBAL(window), &w, &h); return w; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceWindowH(void)     { int w=0,h=0; SDL_GetWindowSize(PSGLOBAL(window), &w, &h); return h; }
