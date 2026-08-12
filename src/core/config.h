@@ -283,6 +283,13 @@ enum Config {
 #	define TIMEBARS		// print debug timers
 #endif
 
+#ifdef __EMSCRIPTEN__
+// Say what is loading. A browser load is slower and far less trusted than a disc one - a bar
+// creeping along with no words next to it reads as a hung tab, which is exactly what it was
+// being mistaken for.
+#define CHATTYSPLASH
+#endif
+
 #define FIX_BUGS		// fixes bugs that we've came across during reversing. You can undefine this only on release builds.
 #define MORE_LANGUAGES		// Add more translations to the game
 #define COMPATIBLE_SAVES // this allows changing structs while keeping saves compatible, and keeps saves compatible between platforms

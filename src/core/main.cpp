@@ -731,6 +731,14 @@ LoadingScreen(const char *str1, const char *str2, const char *splashscreen)
 
 		CFont::DrawFonts();
  		DoRWStuffEndOfFrame();
+#ifdef __EMSCRIPTEN__
+		// DoRWStuffEndOfFrame presents, but a browser composites nothing until control returns to
+		// the event loop - and CGame::Initialise never returns to it, it runs all nineteen of
+		// these calls back to back inside one iteration of the game loop. So the splash sat on
+		// the first frame it managed to draw while the tab went "not responding" for the whole
+		// load. Yielding here is what makes the bar move and keeps the page alive.
+		emscripten_sleep(0);
+#endif
 	}
 }
 
@@ -753,6 +761,9 @@ LoadingIslandScreen(const char *levelName)
 	splash->Draw(CRect(0.0f, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT), col, col, col, col);
 	CFont::DrawFonts();
 	DoRWStuffEndOfFrame();
+#ifdef __EMSCRIPTEN__
+	emscripten_sleep(0);   // same reason as LoadingScreen above
+#endif
 }
 
 void
