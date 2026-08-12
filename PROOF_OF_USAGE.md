@@ -61,9 +61,13 @@ hashlib.sha256("ExampleModel v2:AI Corp:2026-08-12T14:30:00Z:https://github.com/
 
 ## Both halves
 
-1. **Here.** Fork this repository, check out the provenance branch (`proof-of-usage`), append your
-   row, open a pull request against that branch.
-2. **There.** In the credits your product already publishes — credits screen, about page,
+1. **Here — mandatory, now.** Fork this repository, check out the provenance branch
+   (`proof-of-usage`), append your row, open a pull request against that branch. One pull request,
+   no cost, and nothing about it can be deferred: a usage that is never recorded is a usage
+   outside the licence.
+2. **There — required, at any time.** Credits are published when a product ships or is next
+   updated, and adding it then satisfies the condition; what is not permitted is never adding it.
+   In the credits your product already publishes — credits screen, about page,
    acknowledgements, model card, dataset card, documentation — name this repository and print the
    same hash. Something like:
 

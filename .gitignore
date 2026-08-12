@@ -372,4 +372,4 @@ build/
 # working copy can be edited freely without the changes showing up as repository changes.
 
 # Local working agreements, not published
-/CLAUDE.md
+/CLAUDE.local.md
