@@ -132,6 +132,22 @@ CText::Get(const char *key)
 #else
 		outstr = mission_keyArray.Search(key, &result);
 #endif
+
+#ifdef MORE_LANGUAGES
+	// A key this port adds is in no shipped GXT and in no fan translation either, so every
+	// language rendered it as "FEL_POR MISSING". A language's own name is the one string that
+	// should not depend on which language is loaded - it reads the same in all of them - so it
+	// is built in rather than looked up.
+	//
+	// wchar here is the game's own 16-bit character, not wchar_t, and it is spelled without the
+	// accent on purpose: the stock EFIGS font has no glyph for E-circumflex, so a translation is
+	// not required for the entry to be readable.
+	if (!result && strcmp(key, "FEL_POR") == 0) {
+		static wchar portuguese[] = { 'P', 'O', 'R', 'T', 'U', 'G', 'U', 'E', 'S', '\0' };
+		return portuguese;
+	}
+#endif
+
 	return outstr;
 }
 
