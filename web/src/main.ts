@@ -56,7 +56,12 @@ function ring(ratio: number, note: string, file: string): void {
 }
 
 /* ------------------------------------------------------------- letterboxing */
-// JS owns the fit: the engine controls the canvas backing size, which CSS max-% cannot contain.
+/**
+ * The engine renders at a fixed 1280x720 and JS scales that to fit — the canvas never changes
+ * its own size. Letting the render resolution chase the window meant a device reset on every
+ * resize and a canvas that moved under the player; a fixed target is predictable, and the
+ * engine's own resolution is the player's setting to change, not the layout's.
+ */
 function fitCanvas(): void {
   const fullscreen = document.fullscreenElement === frame;
   const availableWidth = Math.min(fullscreen ? innerWidth : stage.clientWidth, innerWidth) - 16;
@@ -65,6 +70,7 @@ function fitCanvas(): void {
   canvas.style.width = `${Math.max(1, Math.floor((canvas.width || 1) * scale))}px`;
   canvas.style.height = `${Math.max(1, Math.floor((canvas.height || 1) * scale))}px`;
 }
+
 new ResizeObserver(fitCanvas).observe(stage);
 new MutationObserver(fitCanvas).observe(canvas, { attributes: true, attributeFilter: ["width", "height"] });
 addEventListener("resize", fitCanvas);
