@@ -442,9 +442,59 @@ psTerminate(void)
  */
 static RwChar **_VMList;
 
+#ifdef __EMSCRIPTEN__
+extern "C" void ViceSetResolution(int w, int h);
+
+/*
+ * The browser's own resolution list is useless here: librw builds it from SDL's display modes,
+ * which describe the user's monitor, not the canvas we render into. Offer a normal set of game
+ * resolutions instead and let the page scale the result to fit.
+ *
+ * Unlike a real mode switch these cost nothing: only the canvas backing store and the camera
+ * raster change, the GL context survives, so no RW device reset and no texture reload.
+ */
+struct ViceVideoMode { RwInt32 w, h; };
+static const ViceVideoMode viceVideoModes[] = {
+    { 640, 480}, { 800, 600}, {1024, 768}, {1152, 864}, {1280, 960}, {1600,1200},   // 4:3
+    {1280, 720}, {1366, 768}, {1600, 900}, {1920,1080}, {2560,1440},                // 16:9
+    {1280, 800}, {1440, 900}, {1680,1050},                                          // 16:10
+};
+static const RwInt32 viceNumVideoModes = sizeof(viceVideoModes) / sizeof(viceVideoModes[0]);
+static const RwInt32 viceDefaultVideoMode = 6;   // 1280x720
+
+// The engine persists this in gta_vc.set, which needs a writable userfiles directory we do not
+// have. localStorage is the browser's equivalent and survives a reload just as well.
+static RwInt32 viceLoadVideoMode(void)
+{
+    RwInt32 mode = EM_ASM_INT({
+        try {
+            var v = parseInt(localStorage.getItem("vice.mode"), 10);
+            return isNaN(v) ? -1 : v;
+        } catch (e) { return -1; }
+    });
+    if ( mode >= 0 && mode < viceNumVideoModes )
+        return mode;
+
+    // Nothing chosen yet: start at whichever default matches the aspect the page asked for.
+    const int wantFourThree = EM_ASM_INT({
+        try { return localStorage.getItem("vice.aspect") === "4:3" ? 1 : 0; } catch (e) { return 0; }
+    });
+    return wantFourThree ? 2 /* 1024x768 */ : viceDefaultVideoMode;
+}
+
+static void viceSaveVideoMode(RwInt32 mode)
+{
+    EM_ASM({ try { localStorage.setItem("vice.mode", $0); } catch (e) {} }, mode);
+}
+#endif
+
 RwInt32 _psGetNumVideModes()
 {
+#ifdef __EMSCRIPTEN__
+    return viceNumVideoModes;
+#else
     return RwEngineGetNumVideoModes();
+#endif
 }
 
 /*
@@ -485,9 +535,21 @@ RwChar **_psGetVideoModeList()
         return _VMList;
     }
 
-    numModes = RwEngineGetNumVideoModes();
+    numModes = _psGetNumVideModes();
 
     _VMList = (RwChar **)RwCalloc(numModes, sizeof(RwChar*));
+
+#ifdef __EMSCRIPTEN__
+    // Every entry gets a name: the menu walks the list skipping nils, so a nil is how a mode is
+    // hidden. Upstream hides all the non-exclusive ones, which in the browser is all of them.
+    for ( i = 0; i < numModes; i++ )
+    {
+        _VMList[i] = (RwChar*)RwCalloc(100, sizeof(RwChar));
+        rwsprintf(_VMList[i], "%d X %d", viceVideoModes[i].w, viceVideoModes[i].h);
+    }
+
+    return _VMList;
+#endif
 
     for ( i = 0; i < numModes; i++	)
     {
@@ -512,6 +574,16 @@ RwChar **_psGetVideoModeList()
  */
 void _psSelectScreenVM(RwInt32 videoMode)
 {
+#ifdef __EMSCRIPTEN__
+    if ( videoMode < 0 || videoMode >= viceNumVideoModes )
+        return;
+
+    // No _psSetVideoMode: that terminates and re-initialises the RW device, which here means
+    // dropping the WebGL context and every texture on it. Resizing the canvas is enough.
+    ViceSetResolution(viceVideoModes[videoMode].w, viceVideoModes[videoMode].h);
+    viceSaveVideoMode(videoMode);
+    return;
+#else
     RwTexDictionarySetCurrent( nil );
 
     FrontEndMenuManager.UnloadTextures();
@@ -523,6 +595,7 @@ void _psSelectScreenVM(RwInt32 videoMode)
     }
     else
         FrontEndMenuManager.LoadAllTextures();
+#endif
 }
 
 /*
@@ -761,19 +834,18 @@ psSelectDevice()
      * psPostRWinit sizes the canvas to match. The page scales it to fit, so this is the render
      * resolution, not the display size.
      */
-    // The page owns the aspect choice. Reading it here, before the device exists, means picking
-    // one costs a reload instead of a mid-session device reset.
-    int wantFourThree = EM_ASM_INT({
-        try { return localStorage.getItem("vice.aspect") === "4:3" ? 1 : 0; } catch (e) { return 0; }
-    });
-    const int chosenW = wantFourThree ? 1024 : 1280;
-    const int chosenH = wantFourThree ? 768 : 720;
+    // Start at whatever the Display menu last chose. Options -> Display can change it freely
+    // afterwards; _psSelectScreenVM applies it without a device reset.
+    const RwInt32 startMode = viceLoadVideoMode();
+    const int chosenW = viceVideoModes[startMode].w;
+    const int chosenH = viceVideoModes[startMode].h;
 
     RsGlobal.maximumWidth = RsGlobal.width = chosenW;
     RsGlobal.maximumHeight = RsGlobal.height = chosenH;
     FrontEndMenuManager.m_nPrefsWidth = chosenW;
     FrontEndMenuManager.m_nPrefsHeight = chosenH;
     FrontEndMenuManager.m_nPrefsWindowed = 1;
+    FrontEndMenuManager.m_nPrefsVideoMode = FrontEndMenuManager.m_nDisplayVideoMode = startMode;
     PSGLOBAL(fullScreen) = FALSE;
 #endif
 

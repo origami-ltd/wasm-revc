@@ -36,6 +36,16 @@
 #include "User.h"
 #include "sampman.h"
 
+#ifdef __EMSCRIPTEN__
+// VC greys the resolution option out once a game is loaded because applying one resets the RW
+// device, which is not survivable mid-game. In the browser _psSelectScreenVM only resizes the
+// canvas and the camera - the GL context and every texture on it stay - so the reason is gone.
+#define SCREENRES_CHANGEABLE true
+#else
+#define SCREENRES_CHANGEABLE m_bGameNotLoaded
+#endif
+
+
 // Similar story to Hud.cpp:
 // Game has colors inlined in code.
 // For easier modification we collect them here:
@@ -856,7 +866,7 @@ CMenuManager::DisplayHelperText(char *text)
 
 			if (aScreens[m_nCurrScreen].m_aEntries[m_nCurrOption].m_Action == MENUACTION_SCREENRES) {
 				CFont::PrintString(SCREEN_STRETCH_FROM_RIGHT(HELPER_TEXT_RIGHT_MARGIN), SCREEN_SCALE_FROM_BOTTOM(HELPER_TEXT_BOTTOM_MARGIN),
-					m_bGameNotLoaded ? TheText.Get("FET_MIG") : TheText.Get("FEH_NA"));
+					SCREENRES_CHANGEABLE ? TheText.Get("FET_MIG") : TheText.Get("FEH_NA"));
 				return;
 			}
 
@@ -1293,7 +1303,7 @@ CMenuManager::DrawStandardMenus(bool activeScreen)
 					AsciiToUnicode(_psGetVideoModeList()[m_nDisplayVideoMode], unicodeTemp);
 					rightText = unicodeTemp;
 
-					if (!m_bGameNotLoaded) {
+					if (!SCREENRES_CHANGEABLE) {
 						CFont::SetColor(CRGBA(DARKMENUOPTION_COLOR.r, DARKMENUOPTION_COLOR.g, DARKMENUOPTION_COLOR.b, FadeIn(255)));
 					}
 					break;
@@ -5088,7 +5098,7 @@ CMenuManager::ProcessUserInput(uint8 goDown, uint8 goUp, uint8 optionSelected, u
 				break;
 #endif
 			case MENUACTION_SCREENRES:
-				if (m_bGameNotLoaded) {
+				if (SCREENRES_CHANGEABLE) {
 					RwChar** videoMods = _psGetVideoModeList();
 					if (changeAmount > 0) {
 						do {
