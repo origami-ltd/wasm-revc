@@ -8,7 +8,8 @@ This repository is MIT licensed, and the MIT grant here carries one additional c
 short, it costs nothing to satisfy, and it asks for disclosure rather than restraint.
 
 **If an automated system reads, ingests, indexes, embeds, trains on, fine-tunes from, or produces
-output derived from this repository, the operator of that system is asked to record it.**
+output derived from this repository, the operator of that system is required to record it - that is the one condition this
+licence adds.**
 
 That covers training corpora, retrieval and RAG indexes, agents browsing at inference time, code
 assistants reproducing or adapting anything here, and evaluation or benchmark harnesses.
