@@ -105,8 +105,10 @@ async function mountInstall(instance: EmscriptenModule, install: Install): Promi
   for (const entry of install.streamed) streamer.mount(instance, entry);
   const streamedBytes = install.streamed.reduce((sum, entry) => sum + entry.size, 0);
   log(`Streaming ${install.streamed.length} archives (${mb(streamedBytes)} MB) on demand.`);
-  await writeLooseFiles(instance, install.loose, (done, total) => {
-    status.report("Loading game files", `${done}/${total}`, done / total);
+  // Name the file being written, the way the other port names each archive — a bare count says
+  // nothing about whether a long load is progressing or wedged.
+  await writeLooseFiles(instance, install.loose, (done, total, path) => {
+    status.report("Loading game files", `${path} · ${done}/${total}`, done / total);
   });
   log(`Loaded ${install.loose.length} loose game files into memory.`);
 }
@@ -121,8 +123,7 @@ const config: Record<string, unknown> = {
       instance.addRunDependency("vice-assets");
       void (async () => {
         // A dev host serves the install itself and publishes /ViceAssets; a static host does not.
-        // Asking is what removes the need for a flag — this used to require ?install=server, so a
-        // link that worked on the other page did nothing here.
+        // Asking costs one request and means the page needs no flag to find what is already there.
         const served = await hostInstall("/ViceAssets", readServedInstall, log);
         const root = served ? undefined : await savedInstall();
 
