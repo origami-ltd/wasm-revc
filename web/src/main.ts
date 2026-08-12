@@ -23,6 +23,7 @@ const shell = createShell({
   subtitle: "WebAssembly + WebGL 2",
   game: "Grand Theft Auto: Vice City",
   gpu: "webgl2",
+  heapBytes: 1024 ** 3, // -sINITIAL_MEMORY=1073741824 in src/CMakeLists.txt
   help: INSTALL_HELP,
   logEndpoint: "/ViceLog",
   frame: () => module?._ViceLogicFrame?.(),
