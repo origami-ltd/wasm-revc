@@ -165,6 +165,26 @@ add_providers()
 {
 	SampleManager.SetNum3DProvidersAvailable(0);
 
+#ifdef __EMSCRIPTEN__
+	/*
+	 * The browser has exactly one audio output and no ALC_ENUMERATION_EXT to describe it, so the
+	 * device list comes back empty. add_providers then reports zero 3D providers, and
+	 * cSampleManager::Initialise treats that as fatal — Terminate(), return FALSE — after which
+	 * every sound in the game is silently dropped. Nothing logs an error; the game just runs mute.
+	 *
+	 * Register the default device directly. A NULL id is exactly what alcOpenDevice wants for it.
+	 */
+	providers[0].id = NULL;
+	strcpy(providers[0].name, "WEB AUDIO");
+	providers[0].sources = MAXCHANNELS;
+	providers[0].bSupportsFx = false;
+	SampleManager.Set3DProviderName(0, providers[0].name);
+	SampleManager.SetNum3DProvidersAvailable(1);
+	for (int j = 1; j < MAXPROVIDERS; j++)
+		SampleManager.Set3DProviderName(j, NULL);
+	return;
+#endif
+
 	static ALDeviceList DeviceList;
 	ALDeviceList *pDeviceList = &DeviceList;
 
@@ -860,12 +880,22 @@ cSampleManager::Initialise(void)
 		alcMakeContextCurrent(ALContext);
 	
 		const char* ext=(const char*)alGetString(AL_EXTENSIONS);
+#ifdef __EMSCRIPTEN__
+		// Emscripten's OpenAL has no AL_SOFT_loop_points, and refusing to start over it turns the
+		// entire game silent — the sample manager returns FALSE, so nothing is ever queued. It
+		// buys exactly one call, alBufferiv(AL_LOOP_POINTS_SOFT) in channel.cpp, which without
+		// the extension is an ignored no-op: looping samples restart at the buffer start instead
+		// of an interior point. Music, radio, speech and effects are unaffected.
+		if ( ext == NULL || strstr(ext, "AL_SOFT_loop_points") == NULL )
+			debug("AL_SOFT_loop_points unavailable; sample loop points disabled\n");
+#else
 		if ( strstr(ext,"AL_SOFT_loop_points")==NULL )
 		{
 			ASSERT(strstr(ext, "AL_SOFT_loop_points") != NULL);
 			Terminate();
 			return FALSE;
 		}
+#endif
 		
 		alListenerf (AL_GAIN,     1.0f);
 		alListener3f(AL_POSITION, 0.0f, 0.0f, 0.0f);
