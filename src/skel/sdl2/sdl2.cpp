@@ -63,6 +63,8 @@ EM_ASYNC_JS(void, reVCYieldFrame, (), {
 #include <unordered_map>
 
 #include "common.h"
+#include "Timecycle.h"
+#include "Clock.h"
 #include "rwcore.h"
 #include "skeleton.h"
 #include "platform.h"
@@ -1452,6 +1454,19 @@ extern "C" EMSCRIPTEN_KEEPALIVE int ViceFirstStart(void)  { return FrontEndMenuM
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceTimeMs(void)      { return (int)CTimer::GetTimeInMillisecondsPauseMode(); }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceLogicalFrames(void) { return (int)CTimer::GetLogicalFramesPassed(); }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseX(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosX; }
+/* Sky and ambient as the timecycle currently computes them. If these come back grey (R==G==B)
+   the timecycle is the problem; if they are colourful and the screen is not, the renderer is. */
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceSkyTop(void) {
+    return (CTimeCycle::GetSkyTopRed() << 16) | (CTimeCycle::GetSkyTopGreen() << 8) | CTimeCycle::GetSkyTopBlue();
+}
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceSkyBottom(void) {
+    return (CTimeCycle::GetSkyBottomRed() << 16) | (CTimeCycle::GetSkyBottomGreen() << 8) | CTimeCycle::GetSkyBottomBlue();
+}
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceAmbient(void) {
+    return ((int)CTimeCycle::GetAmbientRed() << 16) | ((int)CTimeCycle::GetAmbientGreen() << 8) | (int)CTimeCycle::GetAmbientBlue();
+}
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceClockHours(void) { return CClock::GetHours(); }
+
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceDrawnMouseX(void) { return (int)FrontEndMenuManager.m_nMousePosX; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceDrawnMouseY(void) { return (int)FrontEndMenuManager.m_nMousePosY; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMouseY(void)      { return (int)FrontEndMenuManager.m_nMouseTempPosY; }

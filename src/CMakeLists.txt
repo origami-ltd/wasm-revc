@@ -273,7 +273,7 @@ if(EMSCRIPTEN)
         "-sFORCE_FILESYSTEM=1"
         "-sEXIT_RUNTIME=0"
         "-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,callMain,ccall,cwrap,addRunDependency,removeRunDependency"
-        "-sEXPORTED_FUNCTIONS=_main,_malloc,_free,_ViceLogicFrame,_ViceScreenWidth,_ViceScreenHeight,_ViceGameState,_ViceMenuActive,_ViceMenuScreen,_ViceForeground,_ViceIconified,_ViceMouseX,_ViceMouseY,_ViceWindowW,_ViceWindowH,_ViceFrontendStage,_ViceMenuFade,_ViceFirstStart,_ViceTimeMs,_ViceLogicalFrames,_ViceSetResolution,_ViceDrawnMouseX,_ViceDrawnMouseY"
+        "-sEXPORTED_FUNCTIONS=_main,_malloc,_free,_ViceLogicFrame,_ViceScreenWidth,_ViceScreenHeight,_ViceGameState,_ViceMenuActive,_ViceMenuScreen,_ViceForeground,_ViceIconified,_ViceMouseX,_ViceMouseY,_ViceWindowW,_ViceWindowH,_ViceFrontendStage,_ViceMenuFade,_ViceFirstStart,_ViceTimeMs,_ViceLogicalFrames,_ViceSetResolution,_ViceDrawnMouseX,_ViceDrawnMouseY,_ViceSkyTop,_ViceSkyBottom,_ViceAmbient,_ViceClockHours"
         "-lidbfs.js"
     )
     # REVC_WEB_DEBUG=1 turns the useless "Aborted()" into the actual assertion text.
