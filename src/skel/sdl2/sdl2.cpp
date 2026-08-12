@@ -1428,6 +1428,17 @@ extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuActive(void)  { return FrontEndMenuM
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuScreen(void)  { return FrontEndMenuManager.m_nCurrScreen; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceForeground(void)  { return ForegroundApp; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceIconified(void)   { return WindowIconified; }
+/* Render at whatever size the page gives us, so the canvas is never scaled and never soft.
+   resizeCB is the same path a desktop window resize takes: it retargets the camera and updates
+   RsGlobal.maximum*, which is the space the menu lays itself out in. */
+extern "C" EMSCRIPTEN_KEEPALIVE void ViceSetResolution(int w, int h)
+{
+    if (w < 320 || h < 240) return;
+    if (w == RsGlobal.maximumWidth && h == RsGlobal.maximumHeight) return;
+    SDL_SetWindowSize(PSGLOBAL(window), w, h);
+    resizeCB(w, h);
+}
+
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceMenuFade(void)    { return FrontEndMenuManager.m_nMenuFadeAlpha; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceFirstStart(void)  { return FrontEndMenuManager.m_firstStartCounter; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceTimeMs(void)      { return (int)CTimer::GetTimeInMillisecondsPauseMode(); }
