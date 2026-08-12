@@ -365,3 +365,5 @@ src/extras/GitSHA1.cpp
 web/node_modules
 web/dist
 build/
+.vercel
+.env*
