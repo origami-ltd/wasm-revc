@@ -21,8 +21,8 @@ included or distributed here.
 
 The licence for part 1 follows.
 
-MIT License with Proof-of-Usage Condition
-========================================
+MIT License with Proof-of-Usage Condition (MIT-PoU)
+===================================================
 
 Copyright (c) 2026 Erasmo Bellumat / Origami 限
 
