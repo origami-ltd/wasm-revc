@@ -1497,8 +1497,19 @@ uint32 CStream::GetPosMS()
 		return 0;
 
 	ALint offset;
+#ifdef __EMSCRIPTEN__
+	// Ask for the float and round it ourselves. Emscripten computes AL_BYTE_OFFSET as
+	// sourceTell() * frequency * bytesPerSample — a double — and alGetSourcei writes that
+	// straight into an int slot without rounding, which aborts the whole game under
+	// -sASSERTIONS ("attempt to write non-integer into integer heap") the moment the script
+	// engine asks a radio stream for its position.
+	ALfloat byteOffset = 0.0f;
+	alGetSourcef(m_pAlSources[0], AL_BYTE_OFFSET, &byteOffset);
+	offset = (ALint)(byteOffset + 0.5f);
+#else
 	//alGetSourcei(m_alSource, AL_SAMPLE_OFFSET, &offset);
 	alGetSourcei(m_pAlSources[0], AL_BYTE_OFFSET, &offset);
+#endif
 
 	//std::lock_guard<std::mutex> lock(m_mutex);
 

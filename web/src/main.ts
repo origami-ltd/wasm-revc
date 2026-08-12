@@ -153,7 +153,16 @@ const GS_PLAYING_GAME = 9;
 const inGameplay = () => module?._ViceGameState?.() === GS_PLAYING_GAME;
 
 function capturePointer(): void {
-  if (inGameplay() && !document.pointerLockElement) void canvas.requestPointerLock?.();
+  if (!inGameplay() || document.pointerLockElement) return;
+  // requestPointerLock rejects rather than throws, and it legitimately fails in embedded or
+  // unfocused documents ("root document of this element is not valid for pointer lock").
+  // Unhandled, that noise drowns the runtime log; the game is still playable without capture.
+  try {
+    const request = canvas.requestPointerLock?.() as unknown as Promise<void> | undefined;
+    if (request && typeof request.catch === "function") request.catch(() => {});
+  } catch {
+    /* older browsers throw synchronously */
+  }
 }
 
 canvas.addEventListener("pointerdown", () => {
