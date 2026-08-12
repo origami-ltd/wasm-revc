@@ -1730,7 +1730,12 @@ main(int argc, char *argv[])
 
     psPostRWinit();
 
-    ControlsManager.InitDefaultControlConfigMouse(MousePointerStateHelper.GetMouseSetUp());
+    {
+        CMouseControllerState mouseSetup = MousePointerStateHelper.GetMouseSetUp();
+        debug("Mouse buttons bound: LMB=%d RMB=%d MMB=%d wheel=%d",
+              mouseSetup.LMB, mouseSetup.RMB, mouseSetup.MMB, mouseSetup.WHEELUP);
+        ControlsManager.InitDefaultControlConfigMouse(mouseSetup);
+    }
 
 //	glfwSetWindowPos(PSGLOBAL(window), 0, 0);
 

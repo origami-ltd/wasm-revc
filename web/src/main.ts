@@ -27,6 +27,7 @@ const shell = createShell({
   logEndpoint: "/ViceLog",
   frame: () => module?._ViceLogicFrame?.(),
   applyMute: (muted) => module?._ViceSetAudioMuted?.(muted ? 1 : 0),
+  setResolution: (w, h) => module?._ViceSetResolution?.(w, h),
   pointer: {
     // Menus need the free pointer to drive their own cursor; gameplay is FPS-style capture.
     wantsCapture: inGameplay,
