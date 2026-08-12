@@ -370,12 +370,6 @@ build/
 
 # Agent instructions: the committed copy is the canonical one. These are ignored so a local
 # working copy can be edited freely without the changes showing up as repository changes.
-# Note that .gitignore does not apply to files git already tracks - the ignore below only
-# covers a fresh clone. Locally, `git update-index --skip-worktree CLAUDE.md AGENTS.md` is what
-# actually hides edits, and it is already set here.
-CLAUDE.md
-AGENTS.md
 
 # Local working agreements, not published
 /CLAUDE.md
-/AGENTS.md
