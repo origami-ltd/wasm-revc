@@ -51,6 +51,7 @@ const shell = createShell({
     await mountSaves(instance);
     instance.FS.chdir(GAME_ROOT);
   },
+  forgetSaved: async () => { await folders.clear(); },
   onReset: () => folders.clear(),
   onPick: async (picked) => {
     const root = await findInstallRoot(picked);
