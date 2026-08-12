@@ -1390,8 +1390,11 @@ cursorCB(double xpos, double ypos) {
     // which leaves every native build exactly as it was.
     int winw = 0, winh = 0;
     SDL_GetWindowSize(PSGLOBAL(window), &winw, &winh);
-    FrontEndMenuManager.m_nMouseTempPosX = winw > 0 ? xpos * ((float)RsGlobal.maximumWidth / winw) : xpos;
-    FrontEndMenuManager.m_nMouseTempPosY = winh > 0 ? ypos * ((float)RsGlobal.maximumHeight / winh) : ypos;
+    // SCREEN_WIDTH, not maximumWidth. The cursor sprite is drawn at m_nMousePos* translated in
+    // SCREEN_* space (RsGlobal.width/height) — scaling to anything else puts the drawn pointer
+    // somewhere the real one is not, in exact proportion to how far the two disagree.
+    FrontEndMenuManager.m_nMouseTempPosX = winw > 0 ? xpos * (SCREEN_WIDTH / winw) : xpos;
+    FrontEndMenuManager.m_nMouseTempPosY = winh > 0 ? ypos * (SCREEN_HEIGHT / winh) : ypos;
 }
 
 void

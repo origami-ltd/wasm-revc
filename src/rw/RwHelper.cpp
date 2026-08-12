@@ -583,10 +583,21 @@ CameraSize(RwCamera * camera, RwRect * rect,
 			raster->height = zRaster->height = rect->h;
 #endif
 #ifdef FIX_BUGS
+			// The post-processing buffers are sized from the camera raster (rounded up to a
+			// power of two), so a camera resize invalidates them. Sampling the stale ones tiles
+			// a mis-scaled copy of the frame across the screen — a 1024-wide buffer read as if
+			// it were 2048.
+#ifdef EXTENDED_COLOURFILTER
+			// Not gated on BlurOn: with the colour filter the post pass always runs, so the
+			// buffers always have to follow the camera.
+			CMBlur::MotionBlurClose();
+			CMBlur::MotionBlurOpen(camera);
+#else
 			if(CMBlur::BlurOn){
 				CMBlur::MotionBlurClose();
 				CMBlur::MotionBlurOpen(camera);
 			}
+#endif
 #endif
 		}
 

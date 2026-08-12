@@ -184,6 +184,40 @@ setInterval(() => {
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
 /* ------------------------------------------------------------------- sound */
+/**
+ * Chrome starts an AudioContext suspended unless it was created during a user gesture, and
+ * emscripten's OpenAL creates its context when the engine initialises its audio — well after the
+ * Play click. A suspended context is not an error and reports no failure: the game simply runs
+ * silent. So resume anything suspended, on every gesture and whenever the tab comes back, and
+ * keep doing it — the engine opens devices lazily, long after startup.
+ */
+function resumeAudio(): void {
+  const contexts = (window as unknown as { __viceAudioContexts?: AudioContext[] }).__viceAudioContexts;
+  for (const context of contexts ?? []) {
+    if (context.state === "suspended" && !document.hidden) void context.resume().catch(() => {});
+  }
+}
+
+// Catch every AudioContext the engine creates, so they can be resumed later.
+{
+  const Original = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const created: AudioContext[] = [];
+  (window as unknown as { __viceAudioContexts: AudioContext[] }).__viceAudioContexts = created;
+  const Patched = function (this: unknown, ...args: unknown[]) {
+    const context = new (Original as unknown as new (...a: unknown[]) => AudioContext)(...args);
+    created.push(context);
+    return context;
+  } as unknown as typeof AudioContext;
+  Patched.prototype = Original.prototype;
+  window.AudioContext = Patched;
+  (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext = Patched;
+}
+
+for (const type of ["pointerdown", "keydown", "visibilitychange"]) {
+  addEventListener(type, resumeAudio, { capture: true });
+}
+setInterval(resumeAudio, 1000);
+
 let soundMuted = localStorage.getItem("vice.soundMuted") === "1";
 
 function setSoundMuted(muted: boolean): void {
