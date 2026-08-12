@@ -8,6 +8,52 @@ long _dwOperatingSystemVersion;
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/heap.h>
+
+/*
+ * One frame's worth of yielding, on the browser's own clock.
+ *
+ * emscripten_sleep(0) would also return control to the page, but it resumes from a timeout, so
+ * the engine's drawing happens outside any animation frame — the WebGL drawing buffer is not
+ * preserved between composites, and the result is a running game on a black canvas. Suspending
+ * on requestAnimationFrame instead puts every frame inside the compositor's cadence, and pacing
+ * comes free with it.
+ *
+ * EM_ASYNC_JS suspends the whole C++ stack through Asyncify and resumes it when the promise
+ * settles, so the engine's blocking game loop is untouched.
+ *
+ * The worker tick is not a fallback for slow frames, it is the hidden-tab case: browsers stop
+ * firing requestAnimationFrame entirely for a background tab, and a loop suspended on one that
+ * never fires never resumes. Whichever source fires first wins.
+ */
+/* Frame counter, exported so the page can tell "the loop is alive" from "the status line still
+   says Running". Learned from the Generals port: status lies, a counter does not. */
+static volatile int reVCFrames = 0;
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceLogicFrame(void) { return reVCFrames; }
+
+EM_ASYNC_JS(void, reVCYieldFrame, (), {
+    var g = globalThis;
+    if (!g.__reVCTick) {
+        // A worker's timers are exempt from the throttling a browser applies to a background
+        // tab, where requestAnimationFrame stops firing altogether. Without this the game does
+        // not merely slow down when the tab is hidden, it stops between frames for as long as
+        // the tab stays hidden.
+        var src = "setInterval(function(){ postMessage(0); }, 16);";
+        var w = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+        g.__reVCWaiters = [];
+        w.onmessage = function() {
+            var waiting = g.__reVCWaiters;
+            g.__reVCWaiters = [];
+            for (var i = 0; i < waiting.length; i++) waiting[i]();
+        };
+        g.__reVCTick = w;
+    }
+    await new Promise(function(resolve) {
+        var done = false;
+        var finish = function() { if (!done) { done = true; resolve(); } };
+        requestAnimationFrame(finish);   // visible: the compositor sets the pace
+        g.__reVCWaiters.push(finish);    // hidden: the worker keeps it moving
+    });
+});
 #endif
 #include <errno.h>
 #include <locale.h>
@@ -671,6 +717,27 @@ psSelectDevice()
     PSGLOBAL(fullScreen) = !FrontEndMenuManager.m_nPrefsWindowed;
 #endif
 
+#ifdef __EMSCRIPTEN__
+    /*
+     * Pin one resolution for the browser, and make it windowed.
+     *
+     * Two things conspire otherwise. openParams is filled from RsGlobal.maximum* *before* this
+     * function runs, so librw opens the canvas at the startup default; then the saved preference
+     * read here comes back as the whole desktop, because a browser advertises the screen as a
+     * video mode. The engine then laid the frontend out in a 1512x982 space inside a 640x480
+     * framebuffer — entirely off-screen, which left only the cursor visible.
+     *
+     * psPostRWinit sizes the canvas to match. The page scales it to fit, so this is the render
+     * resolution, not the display size.
+     */
+    RsGlobal.maximumWidth = RsGlobal.width = 1280;
+    RsGlobal.maximumHeight = RsGlobal.height = 720;
+    FrontEndMenuManager.m_nPrefsWidth = 1280;
+    FrontEndMenuManager.m_nPrefsHeight = 720;
+    FrontEndMenuManager.m_nPrefsWindowed = 1;
+    PSGLOBAL(fullScreen) = FALSE;
+#endif
+
 #ifdef MULTISAMPLING
     RwD3D8EngineSetMultiSamplingLevels(1 << FrontEndMenuManager.m_nPrefsMSAALevel);
 #endif
@@ -795,8 +862,13 @@ void psPostRWinit(void)
     _InputInitialiseJoys();
     _InputInitialiseMouse(false);
 
+#ifdef __EMSCRIPTEN__
+    // A canvas is never an exclusive video mode, and it must always match the render size.
+    SDL_SetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
+#else
     if(!(vm.flags & rwVIDEOMODEEXCLUSIVE))
         SDL_SetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
+#endif
 
     // Make sure all keys are released
     CPad::GetPad(0)->Clear(true);
@@ -1254,16 +1326,26 @@ _InputTranslateShiftKeyUpDown(RsKeyCodes *rs) {
     RsKeyboardEventHandler(rshiftStatus ? rsKEYDOWN : rsKEYUP, &(*rs = rsRSHIFT));
 }
 
+#ifdef __EMSCRIPTEN__
+/* Render resolution, exported so the page can see when it disagrees with the canvas. */
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceScreenWidth(void) { return RsGlobal.maximumWidth; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceScreenHeight(void) { return RsGlobal.maximumHeight; }
+#endif
+
 void
 cursorCB(double xpos, double ypos) {
     if (!FrontEndMenuManager.m_bMenuActive)
         return;
 
-    // TODO remove?
-    //int winw, winh;
-    //SDL_GetWindowSize(PSGLOBAL(window), &winw, &winh);
-    FrontEndMenuManager.m_nMouseTempPosX = xpos; // * (RsGlobal.maximumWidth / winw);
-    FrontEndMenuManager.m_nMouseTempPosY = ypos; // * (RsGlobal.maximumHeight / winh);
+    // The menu is laid out in RsGlobal.maximum* space, but SDL reports the pointer in window
+    // space. On a desktop those are the same number so the scale was left out; in a browser the
+    // window is the canvas element and the render resolution is whatever video mode the game
+    // picked, so the cursor drifted away from the real pointer. The ratio is 1 when they match,
+    // which leaves every native build exactly as it was.
+    int winw = 0, winh = 0;
+    SDL_GetWindowSize(PSGLOBAL(window), &winw, &winh);
+    FrontEndMenuManager.m_nMouseTempPosX = winw > 0 ? xpos * ((float)RsGlobal.maximumWidth / winw) : xpos;
+    FrontEndMenuManager.m_nMouseTempPosY = winh > 0 ? ypos * ((float)RsGlobal.maximumHeight / winh) : ypos;
 }
 
 void
@@ -1508,7 +1590,8 @@ main(int argc, char *argv[])
             // Nothing is presented until control goes back to the browser, and a tab that never
             // yields is a hung tab. Top of the frame is the one place on this stack with no
             // invoke_* JS frame above us, which Asyncify cannot unwind through.
-            emscripten_sleep(0);
+            reVCFrames++;
+            reVCYieldFrame();
 #endif
             inputEventHandler();
 

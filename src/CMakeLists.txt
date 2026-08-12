@@ -273,7 +273,11 @@ if(EMSCRIPTEN)
         "-sFORCE_FILESYSTEM=1"
         "-sEXIT_RUNTIME=0"
         "-sEXPORTED_RUNTIME_METHODS=FS,IDBFS,callMain,ccall,cwrap,addRunDependency,removeRunDependency"
-        "-sEXPORTED_FUNCTIONS=_main,_malloc,_free"
+        "-sEXPORTED_FUNCTIONS=_main,_malloc,_free,_ViceLogicFrame,_ViceScreenWidth,_ViceScreenHeight"
         "-lidbfs.js"
     )
+    # REVC_WEB_DEBUG=1 turns the useless "Aborted()" into the actual assertion text.
+    if(DEFINED ENV{REVC_WEB_DEBUG})
+        target_link_options(${EXECUTABLE} PRIVATE "-sASSERTIONS=2" "-sSTACK_OVERFLOW_CHECK=2" "-g2")
+    endif()
 endif()

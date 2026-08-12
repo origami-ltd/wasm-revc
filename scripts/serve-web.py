@@ -37,6 +37,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
         self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
         self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+        # reVC.js and reVC.wasm are a matched pair — the wasm refers to EM_ASM/EM_ASYNC_JS
+        # bodies in the glue by address. Serving a cached .js beside a rebuilt .wasm aborts with
+        # "No EM_ASM constant found at address N", which reads like a code bug and is not one.
+        self.send_header("Cache-Control", "no-store, must-revalidate")
 
     def end_headers(self):
         self.isolate()
