@@ -73,7 +73,7 @@ SharedArrayBuffer demands a cross-origin-isolated secure context (`localhost` is
 
 ## How to contribute
 
-1. Check [current issues](https://github.com/origami-ltd/wasm-vice-city/issues) and open a discussion
+1. Check [current issues](https://github.com/origami-ltd/wasm-revc/issues) and open a discussion
 2. Build from source with the steps above
 3. Submit issues or pull requests with detailed information
 

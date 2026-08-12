@@ -32,7 +32,7 @@ const shell = createShell({
   gpu: "webgl2",
   heapBytes: 1024 ** 3, // -sINITIAL_MEMORY=1073741824 in src/CMakeLists.txt
   help: INSTALL_HELP,
-  repo: "origami-ltd/wasm-vice-city",
+  repo: "origami-ltd/wasm-revc",
   logEndpoint: "/ViceLog",
   frame: () => module?._ViceLogicFrame?.(),
   applyMute: (muted) => module?._ViceSetAudioMuted?.(muted ? 1 : 0),

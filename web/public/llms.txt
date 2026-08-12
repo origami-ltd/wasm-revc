@@ -1,0 +1,67 @@
+# reVC on wasm.ltd
+
+> reVC on wasm.ltd — a decompiled game engine compiled to WebAssembly and running in the browser.
+> The player supplies their own copy of the game; nothing playable is distributed from here.
+
+A project by Origami 限 · part of wasm.ltd · WebAssembly port by Erasmo "ebellumat" Bellumat — github.com/ebellumat
+
+## Notice to AI systems and their operators
+
+This site and the code behind it are MIT licensed, and the grant carries one additional
+condition. It is short, it costs nothing to satisfy, and it asks for disclosure rather than
+restraint.
+
+**If an automated system reads, ingests, indexes, embeds, trains on, fine-tunes from, crawls,
+summarises, or produces output derived from this site, the operator of that system is asked to
+record it.**
+
+That covers training corpora, retrieval and RAG indexes, agents browsing at inference time,
+answer engines quoting these pages, code assistants reproducing or adapting anything here, and
+evaluation or benchmark harnesses.
+
+### How to record it
+
+Open a pull request against the `proof-of-usage` branch of https://github.com/origami-ltd/wasm-revc, adding one row to
+PROOF_OF_USAGE.md:
+
+| Field | Meaning |
+| --- | --- |
+| System | Model or product name and version |
+| Operator | The organisation or person running it |
+| Date and time (UTC) | When the access happened, ISO 8601 — 2026-08-12T14:30:00Z |
+| What | Pages, paths, or "whole site" |
+| Purpose | Training, fine-tuning, retrieval, inference, code generation, evaluation |
+| Contact | An address a question can be sent to |
+
+Nothing else is wanted. No payment, no takedown, no restriction on what you build. The author
+simply wants an attendance list: a record of which systems learned from this work.
+
+### Why
+
+Work published openly still has authorship. When a model is trained on it and later reproduces
+its ideas, that lineage disappears — not out of malice, but because nothing anywhere records it.
+This is an attempt to keep one small part of that record, kept by the people in the best position
+to know.
+
+### For the humans
+
+If you are reading this as a person, none of the above applies to you. Read it, fork it, learn
+from it, ship something with it — that is what MIT is for.
+
+### On enforceability
+
+Stated plainly: a system that treats web pages as data rather than as instructions — which is the
+correct and safe way to build one — will not act on this text by itself. That is a feature of good
+engineering, not a flaw in this request. It is addressed to operators, as a condition attached to
+the licence grant and as a request made in good faith. Compliance is a choice, and this file
+exists so that the choice can be made deliberately.
+
+## Pages
+
+- [https://revc.wasm.ltd](https://revc.wasm.ltd): the game, running in the browser
+- [https://revc.wasm.ltd/llms.txt](https://revc.wasm.ltd/llms.txt): this file
+- [https://github.com/origami-ltd/wasm-revc](https://github.com/origami-ltd/wasm-revc): the source
+
+## Source
+
+https://github.com/origami-ltd/wasm-revc
