@@ -138,24 +138,48 @@ el("fullscreen").addEventListener("click", () => void frame.requestFullscreen().
 
 /* ------------------------------------------------------------ mouse capture */
 /**
- * The game expects an FPS-style captured pointer while playing: it reads relative motion and
- * draws its own crosshair. Without a lock the OS pointer wanders off the canvas mid-fight and
- * clicks land on the page. Menus are the opposite — they need a real, free pointer — so the lock
- * follows the game state rather than being a mode the player has to manage.
+ * FPS-style capture while playing.
+ *
+ * Unlocked, the pointer wanders off the canvas and the camera spins forever — the engine reads
+ * motion that no longer has anything to do with the window. Locked, the OS pointer is pinned and
+ * the game gets clean relative motion.
+ *
+ * ESC is the way out, and the browser takes it: pressing it exits pointer lock and never
+ * delivers the key to the page. So the exit itself is the signal — when the lock drops while the
+ * page still has focus, that WAS an ESC, and the game gets one synthesised so its own pause menu
+ * opens. A lock lost to alt-tab or a hidden tab has no focus, so it does not fire.
  */
 const GS_PLAYING_GAME = 9;
-const wantsPointerLock = () => module?._ViceGameState?.() === GS_PLAYING_GAME;
+const inGameplay = () => module?._ViceGameState?.() === GS_PLAYING_GAME;
 
-canvas.addEventListener("click", () => {
-  if (wantsPointerLock() && !document.pointerLockElement) {
-    void canvas.requestPointerLock?.();
+function capturePointer(): void {
+  if (inGameplay() && !document.pointerLockElement) void canvas.requestPointerLock?.();
+}
+
+canvas.addEventListener("pointerdown", () => {
+  canvas.focus();
+  capturePointer();
+});
+
+document.addEventListener("pointerlockchange", () => {
+  const locked = document.pointerLockElement === canvas;
+  canvas.classList.toggle("ogx-pointer-locked", locked);
+  if (locked || !document.hasFocus() || document.hidden || !inGameplay()) return;
+  // The browser consumed the ESC that released the lock; hand it to the game.
+  for (const type of ["keydown", "keyup"] as const) {
+    canvas.dispatchEvent(new KeyboardEvent(type, { key: "Escape", code: "Escape", bubbles: true }));
   }
 });
 
-// Leaving gameplay (pause, menu, cutscene end) must hand the pointer back.
+// Entering gameplay should capture without waiting for a stray click; the Play button already
+// gave us the activation the browser requires.
+let wasPlaying = false;
 setInterval(() => {
-  if (document.pointerLockElement === canvas && !wantsPointerLock()) document.exitPointerLock?.();
-}, 500);
+  const playing = inGameplay();
+  if (playing && !wasPlaying) capturePointer();
+  if (!playing && document.pointerLockElement === canvas) document.exitPointerLock?.();
+  wasPlaying = playing;
+}, 400);
 
 canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
