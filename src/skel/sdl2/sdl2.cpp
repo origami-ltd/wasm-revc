@@ -890,10 +890,23 @@ void psPostRWinit(void)
 #ifdef __EMSCRIPTEN__
     // A canvas is never an exclusive video mode, and it must always match the render size.
     SDL_SetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
-    // …and resize the camera by hand. Changing the canvas size does not raise an SDL resize
-    // event in the browser, so rsCAMERASIZE never fired: the world kept rendering into the
-    // 640x480 raster RwEngineOpen was given, while the HUD drew at the real resolution.
-    resizeCB(RsGlobal.maximumWidth, RsGlobal.maximumHeight);
+    // …and resize the camera by hand. Changing the canvas size raises no SDL resize event in the
+    // browser, so rsCAMERASIZE never fired: the world kept rendering into the 640x480 raster
+    // RwEngineOpen was handed at startup while the HUD drew at the real resolution — a small
+    // picture in the corner of a large canvas.
+    //
+    // Not via resizeCB: that guards on RwInitialised, which the main loop only sets *after* this
+    // runs, so it would quietly do nothing.
+    {
+        RwRect r;
+        r.x = 0;
+        r.y = 0;
+        r.w = RsGlobal.maximumWidth;
+        r.h = RsGlobal.maximumHeight;
+        RsGlobal.width = RsGlobal.maximumWidth;
+        RsGlobal.height = RsGlobal.maximumHeight;
+        RsEventHandler(rsCAMERASIZE, &r);
+    }
 #else
     if(!(vm.flags & rwVIDEOMODEEXCLUSIVE))
         SDL_SetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
