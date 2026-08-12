@@ -1,11 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "//": "require-corp, not credentialless. credentialless is Chromium-only - Safari implements",
+  "//2": "only require-corp, so a page sending credentialless never becomes cross-origin isolated",
+  "//3": "there, the browser withholds SharedArrayBuffer, and the gate correctly reports it as",
+  "//4": "missing. That looked like Safari lacking the feature; Safari has had it since 2021.",
+  "//5": "Every subresource here is same-origin except googletagmanager, which sends both",
+  "//6": "Access-Control-Allow-Origin and Cross-Origin-Resource-Policy, so it satisfies the policy.",
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
-        { "key": "Cross-Origin-Embedder-Policy", "value": "credentialless" }
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
       ]
     }
   ]
