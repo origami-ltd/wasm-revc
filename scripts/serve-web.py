@@ -133,7 +133,7 @@ def main():
     print(f"shell   {WEB}")
     print(f"install {install} ({len(manifest(install))} files)")
     LOG_PATH.write_bytes(b"")
-    print(f"http://localhost:{args.port}/?install=server")
+    print(f"http://localhost:{args.port}/")
     print(f"runtime log  tail -f {LOG_PATH}")
     HTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
 
