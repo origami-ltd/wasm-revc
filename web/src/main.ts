@@ -119,9 +119,11 @@ function fitCanvas(): void {
   const fullscreen = document.fullscreenElement === frame;
   const availableWidth = Math.min(fullscreen ? innerWidth : stage.clientWidth, innerWidth) - 16;
   const availableHeight = Math.min(fullscreen ? innerHeight : stage.clientHeight, innerHeight) - 16;
-  // Capped at 1: past its render resolution the game is just a blurry upscale, and the
-  // Fullscreen button is the deliberate way to go bigger.
-  const scale = Math.min(availableWidth / (canvas.width || 1), availableHeight / (canvas.height || 1), 1);
+  // Windowed is capped at 1 so the game is never a blurry upscale of itself. Fullscreen is the
+  // deliberate "make it bigger" and must be allowed past that, or it just letterboxes 1280x720
+  // in the middle of a black screen.
+  const fit = Math.min(availableWidth / (canvas.width || 1), availableHeight / (canvas.height || 1));
+  const scale = fullscreen ? fit : Math.min(fit, 1);
   canvas.style.width = `${Math.max(1, Math.floor((canvas.width || 1) * scale))}px`;
   canvas.style.height = `${Math.max(1, Math.floor((canvas.height || 1) * scale))}px`;
 }
@@ -133,6 +135,29 @@ document.addEventListener("fullscreenchange", fitCanvas);
 
 // Fullscreen the frame, not the canvas, so overlays stay inside the fullscreened subtree.
 el("fullscreen").addEventListener("click", () => void frame.requestFullscreen().catch(() => {}));
+
+/* ------------------------------------------------------------ mouse capture */
+/**
+ * The game expects an FPS-style captured pointer while playing: it reads relative motion and
+ * draws its own crosshair. Without a lock the OS pointer wanders off the canvas mid-fight and
+ * clicks land on the page. Menus are the opposite — they need a real, free pointer — so the lock
+ * follows the game state rather than being a mode the player has to manage.
+ */
+const GS_PLAYING_GAME = 9;
+const wantsPointerLock = () => module?._ViceGameState?.() === GS_PLAYING_GAME;
+
+canvas.addEventListener("click", () => {
+  if (wantsPointerLock() && !document.pointerLockElement) {
+    void canvas.requestPointerLock?.();
+  }
+});
+
+// Leaving gameplay (pause, menu, cutscene end) must hand the pointer back.
+setInterval(() => {
+  if (document.pointerLockElement === canvas && !wantsPointerLock()) document.exitPointerLock?.();
+}, 500);
+
+canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
 /* ------------------------------------------------------------------- sound */
 let soundMuted = localStorage.getItem("vice.soundMuted") === "1";

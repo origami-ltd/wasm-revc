@@ -877,6 +877,8 @@ bool _InputMouseNeedsExclusive()
     return false;
 }
 
+void resizeCB(int width, int height);
+
 void psPostRWinit(void)
 {
     RwVideoMode vm;
@@ -888,6 +890,10 @@ void psPostRWinit(void)
 #ifdef __EMSCRIPTEN__
     // A canvas is never an exclusive video mode, and it must always match the render size.
     SDL_SetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
+    // …and resize the camera by hand. Changing the canvas size does not raise an SDL resize
+    // event in the browser, so rsCAMERASIZE never fired: the world kept rendering into the
+    // 640x480 raster RwEngineOpen was given, while the HUD drew at the real resolution.
+    resizeCB(RsGlobal.maximumWidth, RsGlobal.maximumHeight);
 #else
     if(!(vm.flags & rwVIDEOMODEEXCLUSIVE))
         SDL_SetWindowSize(PSGLOBAL(window), RsGlobal.maximumWidth, RsGlobal.maximumHeight);
@@ -1195,6 +1201,10 @@ void resizeCB(int width, int height) {
         // TODO fix artifacts of resizing with mouse
         RsGlobal.maximumHeight = height;
         RsGlobal.maximumWidth = width;
+        // width/height is the 3D render size; maximum* is the space the HUD and menus lay out
+        // in. Leaving these behind renders the world at one resolution and the HUD at another.
+        RsGlobal.height = height;
+        RsGlobal.width = width;
 
         r.x = 0;
         r.y = 0;
