@@ -97,7 +97,9 @@ export async function readInstall(root: FileSystemDirectoryHandle): Promise<Inst
           name: path.slice(slash + 1),
           url: `local:${path}`,
           size: file.size,
-          handle: handle as FileSystemFileHandle,
+          // Resolved to a File here: the reader worker is sent this, and a File clones in
+          // every engine while a handle does not.
+          file: await (handle as FileSystemFileHandle).getFile(),
         });
       } else {
         const fileHandle = handle as FileSystemFileHandle;
