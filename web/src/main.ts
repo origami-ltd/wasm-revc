@@ -26,12 +26,67 @@ let module: EmscriptenModule | undefined;
 /* ---------------------------------------------------------------- logging */
 const shownLines: string[] = [];
 
+/**
+ * Everything the page knows, shipped to the host so it can be tailed from a terminal
+ * (scripts/serve-web.py writes /tmp/vice-runtime.log). A browser console cannot be read from
+ * outside the browser, and that is exactly where the useful symptom always shows up first —
+ * engine debug output, uncaught wasm traps, and the stall detector below.
+ */
+const pending: string[] = [];
+let logDead = false;
+
+function ship(): void {
+  if (!pending.length || logDead) return;
+  const body = `${pending.join("\n")}\n`;
+  pending.length = 0;
+  void fetch("/ViceLog", { method: "POST", body }).catch(() => { logDead = true; });
+}
+setInterval(ship, 1000);
+addEventListener("pagehide", ship);
+
 function log(line: string): void {
   shownLines.push(line);
   if (shownLines.length > 512) shownLines.shift();
+  pending.push(line);
   output.value = `${shownLines.join("\n")}\n`;
   output.scrollTop = output.scrollHeight;
 }
+
+// Uncaught traps are the ones that matter most and the ones the page would otherwise swallow.
+addEventListener("error", (event) => log(`[js error] ${event.message} @ ${event.filename}:${event.lineno}`));
+addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason as { message?: string; stack?: string } | undefined;
+  log(`[unhandled] ${reason?.message ?? String(event.reason)}`);
+  if (reason?.stack) log(reason.stack.split("\n").slice(0, 12).join("\n"));
+});
+
+/**
+ * Stall detector. The engine's frame counter is the only honest liveness signal — the status
+ * line says "Running" even when the loop has stopped dead, and a wasm trap inside the game loop
+ * leaves a page that looks merely slow. Reports the first stall and the recovery, not every tick.
+ */
+let lastFrame = -1;
+let lastProgress = Date.now();
+let stalled = false;
+setInterval(() => {
+  const frame = module?._ViceLogicFrame?.();
+  if (frame === undefined) return;
+  if (frame !== lastFrame) {
+    if (stalled) {
+      log(`[stall] recovered after ${((Date.now() - lastProgress) / 1000).toFixed(1)}s at frame ${frame}`);
+      stalled = false;
+    }
+    lastFrame = frame;
+    lastProgress = Date.now();
+    return;
+  }
+  const idle = Date.now() - lastProgress;
+  if (idle > 5000 && !stalled) {
+    stalled = true;
+    log(`[stall] no frame for ${(idle / 1000).toFixed(1)}s at frame ${frame}`
+      + ` — state=${module?._ViceGameState?.()} idle=${module?._ViceIdleCount?.()}`);
+  }
+}, 1000);
 
 /** Everything the page is doing: headline, detail line, and a bar when there is a ratio. */
 function report(headline: string, note = "", ratio?: number): void {
