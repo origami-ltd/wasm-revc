@@ -99,12 +99,19 @@ function report(headline: string, note = "", ratio?: number): void {
 const mb = (bytes: number): string => (bytes / 2 ** 20).toFixed(0);
 
 /* ------------------------------------------------------------------ display */
-// 16:9 is 1280x720, 4:3 is 1024x768. The engine reads this at startup (see psSelectDevice) so
-// picking one costs a reload rather than a mid-session device reset.
+/**
+ * Aspect only. The resolution itself belongs to Options -> Display inside the game, which can
+ * pick anything in its list — the canvas follows it and the page scales the result to fit, so
+ * rendering at 1920x1080 in a smaller canvas is a normal thing to ask for.
+ *
+ * This picks which resolution the game *starts* at the first time, nothing more: 16:9 boots at
+ * 1280x720, 4:3 at 1024x768. Changing it clears the saved mode so the new default takes hold.
+ */
 const aspect = el<HTMLSelectElement>("aspect");
 aspect.value = localStorage.getItem("vice.aspect") === "4:3" ? "4:3" : "16:9";
 aspect.addEventListener("change", () => {
   localStorage.setItem("vice.aspect", aspect.value);
+  localStorage.removeItem("vice.mode");
   location.reload();
 });
 

@@ -938,12 +938,37 @@ void CPad::UpdateMouse()
 #ifdef LIBRW_SDL2
         int xpos = 1, ypos;
         int mouseState = SDL_GetMouseState(&xpos, &ypos);
+#ifdef __EMSCRIPTEN__
+        /*
+         * Camera control has to come from relative motion, not from the difference between two
+         * absolute positions.
+         *
+         * While the pointer is locked the OS cursor is pinned, so SDL_GetMouseState saturates at
+         * the canvas edge. Once xpos reached the right border the difference below was 0 every
+         * frame and the camera simply stopped turning right, while turning left kept working
+         * because xpos could still decrease from the saturated value. Relative motion is what
+         * pointer lock actually reports (movementX/movementY), and SDL derives it from
+         * consecutive positions when the pointer is free, so this is right either way.
+         *
+         * Only outside the menu: the menu needs the absolute position to place its cursor.
+         */
+        const bool useRelativeMouse = !FrontEndMenuManager.m_bMenuActive;
+        int relx = 0, rely = 0;
+        if (useRelativeMouse)
+            SDL_GetRelativeMouseState(&relx, &rely);
+#endif
 #else
         double xpos = 1.0f, ypos;
 		glfwGetCursorPos(PSGLOBAL(window), &xpos, &ypos);
 #endif
+#ifdef __EMSCRIPTEN__
+        // xpos legitimately reaches 0 under pointer lock; upstream's guard would freeze the camera.
+        if (!useRelativeMouse && xpos == 0.f)
+            return;
+#else
 		if (xpos == 0.f)
 			return;
+#endif
 
 		int32 signX = 1;
 		int32 signy = 1;
@@ -958,8 +983,18 @@ void CPad::UpdateMouse()
 
 		PCTempMouseControllerState.Clear();
 
+#ifdef __EMSCRIPTEN__
+		if (useRelativeMouse)
+		{
+			PCTempMouseControllerState.x = (float)(signX * relx);
+			PCTempMouseControllerState.y = (float)(signy * rely);
+		}
+		else
+#endif
+		{
 		PCTempMouseControllerState.x = (float)(signX * (xpos - PSGLOBAL(lastMousePos.x)));
 		PCTempMouseControllerState.y = (float)(signy * (ypos - PSGLOBAL(lastMousePos.y)));
+		}
 #ifdef LIBRW_SDL2
         PCTempMouseControllerState.LMB = !!(mouseState & SDL_BUTTON(1));
         PCTempMouseControllerState.RMB = !!(mouseState & SDL_BUTTON(3));
