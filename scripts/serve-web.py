@@ -15,6 +15,7 @@ import argparse, json, os, pathlib, re, sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+LOG_PATH = pathlib.Path("/tmp/vice-runtime.log")
 WEB = ROOT / "web" / "dist"
 # Anything at least this big is streamed in chunks; the rest is loaded into memory at boot.
 STREAM_THRESHOLD = 4 * 1024 * 1024
@@ -45,6 +46,19 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         self.isolate()
         super().end_headers()
+
+    def do_POST(self):
+        # The page ships its runtime log here so it can be tailed from a terminal. A browser
+        # console cannot be read from outside the browser, and that is where every useful
+        # symptom shows up first.
+        length = int(self.headers.get("Content-Length") or 0)
+        body = self.rfile.read(length)
+        if self.path.split("?")[0] == "/ViceLog":
+            with open(LOG_PATH, "ab") as handle:
+                handle.write(body)
+                handle.flush()
+        self.send_response(204)
+        self.end_headers()
 
     def do_GET(self):
         if self.path.split("?")[0] == "/ViceAssets":
@@ -118,7 +132,9 @@ def main():
     os.chdir(WEB)
     print(f"shell   {WEB}")
     print(f"install {install} ({len(manifest(install))} files)")
+    LOG_PATH.write_bytes(b"")
     print(f"http://localhost:{args.port}/?install=server")
+    print(f"runtime log  tail -f {LOG_PATH}")
     HTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
 
 

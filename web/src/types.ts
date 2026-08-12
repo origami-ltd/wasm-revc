@@ -8,6 +8,9 @@ export interface EmscriptenModule extends BaseModule {
   _ViceLogicFrame?: () => number;
   /** Render at this size — see the fitCanvas note in main.ts. */
   _ViceSetResolution?: (width: number, height: number) => void;
+  /** Diagnostics, exported by the emscripten build only. */
+  _ViceGameState?: () => number;
+  _ViceIdleCount?: () => number;
 }
 
 export type ModuleFactory = (config: Record<string, unknown>) => Promise<EmscriptenModule>;
