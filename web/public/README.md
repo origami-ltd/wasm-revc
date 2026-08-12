@@ -16,3 +16,7 @@ REVC_AUDIO=OAL ./scripts/build-web.sh
 The two files are a matched set — the `.js` glue refers to addresses inside the `.wasm`, so a
 mismatched pair aborts at startup with "No EM_ASM constant found at address N". Always commit
 them together.
+
+`vercel.json` sits here because Vite copies this directory verbatim into `dist`, and `dist` is
+what gets deployed. The headers it sets are not optional: the archive streamer reads through
+SharedArrayBuffer, which the browser only exposes on a cross-origin-isolated page.
