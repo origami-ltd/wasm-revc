@@ -115,6 +115,16 @@ void LangRusSelect(int8 action)
 	}
 }
 
+void LangPorSelect(int8 action)
+{
+	if (action == FEOPTION_ACTION_SELECT) {
+		FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_PORTUGUESE;
+		FrontEndMenuManager.m_bFrontEnd_ReloadObrTxtGxt = true;
+		FrontEndMenuManager.InitialiseChangedLanguageSettings();
+		FrontEndMenuManager.SaveSettings();
+	}
+}
+
 void LangJapSelect(int8 action)
 {
 	if (action == FEOPTION_ACTION_SELECT) {
@@ -170,6 +180,11 @@ CustomFrontendOptionsPopulate(void)
 		CFileMgr::CloseFile(fd);
 	}
 #endif
+
+	if (fd = CFileMgr::OpenFile("text/portuguese.gxt")) {
+		FrontendOptionAddDynamic("FEL_POR", 0, 0, MENUALIGN_CENTER, nil, nil, LangPorSelect, nil, nil);
+		CFileMgr::CloseFile(fd);
+	}
 
 	if (fd = CFileMgr::OpenFile("text/russian.gxt")) {
 		if (fd2 = CFileMgr::OpenFile("models/fonts_r.txd")) {
