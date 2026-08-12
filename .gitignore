@@ -375,3 +375,7 @@ build/
 # actually hides edits, and it is already set here.
 CLAUDE.md
 AGENTS.md
+
+# Local working agreements, not published
+/CLAUDE.md
+/AGENTS.md
