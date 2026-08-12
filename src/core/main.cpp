@@ -12,6 +12,7 @@
 #include "rpanisot.h"
 #endif
 
+#include "crossplatform.h"   // gGameState, for the loading-only yield below
 #include "main.h"
 #include "CdStream.h"
 #include "General.h"
@@ -679,6 +680,13 @@ LoadingScreen(const char *str1, const char *str2, const char *splashscreen)
 
 		if(str1){
 			NumberOfChunksLoaded += 1;
+#ifdef __EMSCRIPTEN__
+			// Say the same thing in the log that the splash says on screen. A load that wedges
+			// leaves the page silent, and the last line here is the only thing that says how far
+			// it got - the browser's own log stops at whatever ran before the freeze.
+			debug("Loading %d/%d: %s%s%s\n", (int)NumberOfChunksLoaded, (int)TOTALNUMCHUNKS,
+				str1, str2 ? " - " : "", str2 ? str2 : "");
+#endif
 
 #ifndef RANDOMSPLASH
 			float hpos = SCREEN_SCALE_X(40);
@@ -737,7 +745,14 @@ LoadingScreen(const char *str1, const char *str2, const char *splashscreen)
 		// these calls back to back inside one iteration of the game loop. So the splash sat on
 		// the first frame it managed to draw while the tab went "not responding" for the whole
 		// load. Yielding here is what makes the bar move and keeps the page alive.
-		emscripten_sleep(0);
+		//
+		// Only while loading, though. This same function runs during play - crossing to the
+		// second island, saving - and unwinding the Asyncify stack from that depth, underneath
+		// the whole of CGame::Process, did not reliably come back: the game froze outright
+		// mid-session. The top of the game loop is the only place a yield is known to be safe,
+		// and during startup this is effectively that.
+		if (gGameState != GS_PLAYING_GAME)
+			emscripten_sleep(0);
 #endif
 	}
 }
@@ -761,9 +776,8 @@ LoadingIslandScreen(const char *levelName)
 	splash->Draw(CRect(0.0f, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT), col, col, col, col);
 	CFont::DrawFonts();
 	DoRWStuffEndOfFrame();
-#ifdef __EMSCRIPTEN__
-	emscripten_sleep(0);   // same reason as LoadingScreen above
-#endif
+	// No yield here on purpose: this is the island-change screen, which only ever runs mid-game,
+	// exactly where unwinding froze the session. See LoadingScreen above.
 }
 
 void

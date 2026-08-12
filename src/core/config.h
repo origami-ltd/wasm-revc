@@ -333,7 +333,13 @@ enum Config {
 	// is what the streaming layer is for.
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
+#ifndef __EMSCRIPTEN__
 #define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
+#endif	// Not in the browser. Skipping the loading screen skips the only frame the page gets
+	// during CGame::Initialise, and with it the yield that hands control back to the event
+	// loop - so the tab went "not responding" for the whole load with nothing on screen but a
+	// static splash. Drawing it costs a frame per stage and buys a moving bar, the name of the
+	// stage, and a page that is still alive.
 #define DISABLE_VSYNC_ON_TEXTURE_CONVERSION // make texture conversion work faster by disabling vsync
 #define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
 //#define USE_TEXTURE_POOL

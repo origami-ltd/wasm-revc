@@ -1306,10 +1306,19 @@ void resizeCB(int width, int height) {
     */
     /* redraw window */
 
+#ifndef __EMSCRIPTEN__
     if (RwInitialised && gGameState == GS_PLAYING_GAME)
     {
         RsEventHandler(rsIDLE, (void *)TRUE);
     }
+#else
+    // No frame from here. This runs inside a DOM event - the shell calls ViceSetResolution when
+    // fullscreen is entered or left - and rsIDLE is a whole game frame, so it re-enters the game
+    // loop while the module is suspended mid-frame on its Asyncify yield. That leaves two
+    // unwinds interleaved and the game never comes back: it froze on leaving fullscreen. The
+    // reason it exists at all is to keep a window painted during a drag-resize, which a canvas
+    // does not have; the loop paints the new size on its next frame anyway.
+#endif
 
     if (RwInitialised && height > 0 && width > 0) {
         RwRect r;
