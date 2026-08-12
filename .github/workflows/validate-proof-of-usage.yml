@@ -1,0 +1,85 @@
+name: Validate proof-of-usage rows
+
+# A pull request that adds a row to PROOF_OF_USAGE.md is checked for shape and for the handshake
+# hash: seven columns, a real ISO 8601 timestamp, an address that looks like one, and a fingerprint
+# that actually is SHA-256("System:Operator:Date:RepoURL"). Whether the row is *true* is not
+# checkable here and is not meant to be - that part is on the operator, which is the premise.
+on:
+  pull_request:
+    paths:
+      - "PROOF_OF_USAGE.md"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the rows this pull request adds
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, re, subprocess, sys
+
+          repo_url = os.environ["REPO_URL"]
+          base = "origin/${{ github.base_ref }}"
+          diff = subprocess.run(["git", "diff", "--unified=0", base, "--", "PROOF_OF_USAGE.md"],
+                                capture_output=True, text=True).stdout
+          added = [l[1:].strip() for l in diff.splitlines()
+                   if l.startswith("+") and not l.startswith("+++")]
+          rows = [l for l in added if l.startswith("|") and not re.match(r"^\|[\s:|-]+\|$", l)]
+
+          if not rows:
+              print("No new rows - nothing to check.")
+              sys.exit(0)
+
+          ISO = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
+          MAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+          URL = re.compile(r"^https?://\S+$")
+
+          def handshake(system, operator, date):
+              payload = ":".join(v.strip() for v in (system, operator, date, repo_url))
+              return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+          problems = []
+          for row in rows:
+              cells = [c.strip() for c in row.strip("|").split("|")]
+              if len(cells) != 7:
+                  problems.append(f"{row}\n    -> {len(cells)} columns, expected 7 (System | Operator | "
+                                  "Date and Time (UTC) | What | Purpose | Contact | Provenance Hash)")
+                  continue
+              system, operator, when, what, purpose, contact, digest = cells
+              digest = digest.replace("`", "").strip().lower()
+
+              if not ISO.match(when):
+                  problems.append(f"{row}\n    -> '{when}' is not ISO 8601, e.g. 2026-08-12T14:30:00Z")
+              elif not re.fullmatch(r"[0-9a-f]{64}", digest):
+                  problems.append(f"{row}\n    -> the hash is not a lowercase SHA-256 hex digest")
+              else:
+                  expected = handshake(system, operator, when)
+                  if digest != expected:
+                      problems.append(
+                          f"{row}\n"
+                          f"    -> the handshake does not match this row.\n"
+                          f"       input    {system}:{operator}:{when}:{repo_url}\n"
+                          f"       expected {expected}\n"
+                          f"       recorded {digest}\n"
+                          f"       The same digest has to appear in your product's credits.")
+
+              if not (MAIL.match(contact) or URL.match(contact)):
+                  problems.append(f"{row}\n    -> '{contact}' is not an address a question can be sent to")
+              for name, value in (("System", system), ("Operator", operator),
+                                  ("What", what), ("Purpose", purpose)):
+                  if not value or value in {"-", "n/a", "N/A"}:
+                      problems.append(f"{row}\n    -> {name} is empty")
+
+          if problems:
+              print("These rows need a fix:\n")
+              print("\n\n".join(problems))
+              sys.exit(1)
+
+          print(f"{len(rows)} row(s) check out. Print the same hash in your credits and the handshake is complete.")
+          PY
