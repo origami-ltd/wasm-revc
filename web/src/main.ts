@@ -11,16 +11,6 @@ import type { EmscriptenModule, ModuleFactory } from "./types";
 
 let module: EmscriptenModule | undefined;
 
-/**
- * The engine, paused on its asset dependency because no install was found yet.
- *
- * It is held so that picking a folder can mount into the running module. Reloading instead looks
- * like the obvious move, and it was what this did — but a File System Access handle comes back
- * from IndexedDB needing its permission re-granted, and a fresh page load has no user gesture to
- * grant it with. So the reload dropped the folder that had just been chosen, the gate reopened,
- * and picking again reloaded again: a loop with no way out.
- */
-let waiting: EmscriptenModule | undefined;
 
 /** Gameplay, as opposed to the frontend menus — the state that wants the pointer captured. */
 const GS_PLAYING_GAME = 9;
@@ -44,29 +34,19 @@ const shell = createShell({
     wantsCapture: inGameplay,
     ready: () => el("frame").dataset.ready === "true",
   },
+  assetDependency: "vice-assets",
+  mountPicked: async (instance, root) => {
+    await streamer.ready;
+    instance.FS.mkdirTree(GAME_ROOT);
+    await mountInstall(instance, await readInstall(root));
+    await mountSaves(instance);
+    instance.FS.chdir(GAME_ROOT);
+  },
   onReset: () => folders.clear(),
   onPick: async (picked) => {
     const root = await findInstallRoot(picked);
     if (!root) return "No Vice City install under that folder — it needs models/gta3.img and data/gta_vc.dat.";
     await folders.save(new Map([[INSTALL_KEY, root]]));
-
-    // Feed the waiting engine directly. The permission granted by this very pick is live right
-    // now; it will not survive a page load.
-    if (waiting) {
-      const instance = waiting;
-      waiting = undefined;
-      await streamer.ready;
-      instance.FS.mkdirTree(GAME_ROOT);
-      await mountInstall(instance, await readInstall(root));
-      await mountSaves(instance);
-      instance.FS.chdir(GAME_ROOT);
-      instance.removeRunDependency("vice-assets");
-      gate.hide();
-      return undefined;
-    }
-
-    // No engine yet — the player came in through ?assets=1 before pressing Play.
-    setTimeout(() => location.replace(location.pathname), 700);
     return undefined;
   },
 });
@@ -150,7 +130,7 @@ const config: Record<string, unknown> = {
   preRun: [
     (instance: EmscriptenModule) => {
       instance.addRunDependency("vice-assets");
-      waiting = instance;
+      shell.holdEngine(instance);
       void (async () => {
         // A dev host serves the install itself and publishes /ViceAssets; a static host does not.
         // Asking costs one request and means the page needs no flag to find what is already there.
