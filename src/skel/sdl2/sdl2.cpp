@@ -692,6 +692,22 @@ psSelectDevice()
     FrontEndMenuManager.m_nCurrOption = 0;
 #endif
 
+#ifdef __EMSCRIPTEN__
+    /*
+     * A canvas is never a fullscreen video mode. Mode 0 is the only one librw leaves without
+     * rwVIDEOMODEEXCLUSIVE; every other entry comes from the display list and is marked exclusive.
+     *
+     * The selection loop above runs before this port pins the resolution below, so it still saw
+     * m_nPrefsWindowed == 0 and chose bestFsMode — an exclusive mode carrying the *desktop* size.
+     * That leaks far past this function: CameraSize(camera, nil, ...) has a dedicated branch for
+     * exclusive modes that ignores the current raster and resizes the camera to the video mode.
+     * reVC calls it that way from four places, so the camera kept snapping back to 2560x1440
+     * while the canvas stayed 1280x720 — the world rendered into a raster twice the framebuffer
+     * and only its bottom-left quarter was ever presented.
+     */
+    GcurSelVM = 0;
+#endif
+
     /* Set up the video mode and set the apps window
     * dimensions to match */
     if (!RwEngineSetVideoMode(GcurSelVM))
@@ -1376,6 +1392,14 @@ _InputTranslateShiftKeyUpDown(RsKeyCodes *rs) {
 /* Render resolution, exported so the page can see when it disagrees with the canvas. */
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceScreenWidth(void) { return RsGlobal.maximumWidth; }
 extern "C" EMSCRIPTEN_KEEPALIVE int ViceScreenHeight(void) { return RsGlobal.maximumHeight; }
+/* RsGlobal.width/height is the 3D render size and what Scene.camera is created from; maximum* is
+   the HUD's layout space. They are different numbers and only one of them sizes the camera. */
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceRenderWidth(void)  { return RsGlobal.width; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceRenderHeight(void) { return RsGlobal.height; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceRasterW(void) {
+    return Scene.camera ? RwRasterGetWidth(RwCameraGetRaster(Scene.camera)) : -1; }
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceRasterH(void) {
+    return Scene.camera ? RwRasterGetHeight(RwCameraGetRaster(Scene.camera)) : -1; }
 #endif
 
 void

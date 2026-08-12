@@ -625,6 +625,12 @@ CameraSize(RwCamera * camera, RwRect * rect,
 
 		RwCameraSetViewWindow(camera, &vw);
 
+#ifdef __EMSCRIPTEN__
+		debug("CameraSize: rect=%dx%d orig=%dx%d raster=%dx%d", rect->w, rect->h,
+		      origSize.w, origSize.h,
+		      RwRasterGetWidth(RwCameraGetRaster(camera)),
+		      RwRasterGetHeight(RwCameraGetRaster(camera)));
+#endif
 		RsGlobal.width  = rect->w;
 		RsGlobal.height = rect->h;
 	}
