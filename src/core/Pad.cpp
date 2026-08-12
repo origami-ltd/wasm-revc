@@ -878,6 +878,20 @@ CMouseControllerState CMousePointerStateHelper::GetMouseSetUp()
     int xpos = 1, ypos;
     SDL_GetMouseState(&xpos, &ypos);
 #endif
+#ifdef __EMSCRIPTEN__
+	// Upstream infers "a mouse exists" from the cursor sitting at a non-zero x, which is a guess
+	// that happens to hold on a desktop. It does not here: this runs during startup, before the
+	// pointer has ever been over the canvas, and SDL reports x = 0 - so every mouse button was
+	// left unbound and left-click and right-click did nothing all game.
+	//
+	// A browser always has the full set. There is no device to interrogate and nothing to detect.
+	(void)xpos;
+	state.MMB = true;
+	state.RMB = true;
+	state.LMB = true;
+	state.WHEELDN = true;
+	state.WHEELUP = true;
+#else
 	if (xpos != 0.f) {
 		state.MMB = true;
 		state.RMB = true;
@@ -885,6 +899,7 @@ CMouseControllerState CMousePointerStateHelper::GetMouseSetUp()
 		state.WHEELDN = true;
 		state.WHEELUP = true;
 	}
+#endif
 #endif
 
 	return state;
