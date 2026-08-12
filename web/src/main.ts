@@ -1,5 +1,5 @@
 import "./style.css";
-import { ArchiveStreamer, allSupported } from "@wasm/runtime";
+import { ArchiveStreamer, allSupported, mountPersistent } from "@wasm/runtime";
 import { createShell, el, hostInstall, mb, query } from "@wasm/shell";
 import {
   folders, findInstallRoot, GAME_ROOT, INSTALL_KEY, readInstall, readServedInstall, savedInstall,
@@ -90,56 +90,12 @@ const streamer = new ArchiveStreamer(log);
  * The engine writes saves, gta_vc.set and the stats file into `userfiles` under the install root.
  * Everything else in the FS is MEMFS and dies with the tab, which is fine for game data the
  * player already has on disk — but not for their progress. IDBFS keeps a copy in IndexedDB;
- * syncfs(true) reads it back at boot, and the engine calls ViceSyncSaves() after each write to
- * push it out again.
+ * mountPersistent reads it back at boot, and the engine calls ViceSyncSaves() after each write to
+ * push it out again. Shared with Generals, which mounts its user data the same way and has to
+ * survive the same Safari failure.
  */
-async function mountSaves(instance: EmscriptenModule): Promise<void> {
-  const path = `${GAME_ROOT}/userfiles`;
-  try {
-    instance.FS.mkdirTree(path);
-    const FS = instance.FS as unknown as {
-      mount(fs: unknown, opts: object, path: string): void;
-      filesystems: { IDBFS?: unknown };
-      syncfs(populate: boolean, cb: (err?: Error) => void): void;
-    };
-    if (!FS.filesystems.IDBFS) {
-      log("No IDBFS in this build — saves will not survive a reload.");
-      return;
-    }
-    FS.mount(FS.filesystems.IDBFS, {}, path);
-
-    // populate: pull whatever IndexedDB already holds into the in-memory tree.
-    //
-    // Safari throws DataCloneError from inside IDBFS - getIDB, getRemoteSet, syncfs - on what
-    // emscripten writes to IndexedDB. It surfaces as an unhandled rejection escaping the
-    // callback, not as the err argument, so catching the callback is not enough and the boot
-    // took the rejection with it. Losing save persistence is worth far less than losing the game,
-    // so a failure here is reported and stepped over.
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const done = (problem?: string) => {
-        if (settled) return;
-        settled = true;
-        if (problem) log(`Saved games unavailable in this browser (${problem}); progress will not persist.`);
-        resolve();
-      };
-      const onRejection = (event: PromiseRejectionEvent) => done(String(event.reason));
-      addEventListener("unhandledrejection", onRejection, { once: true });
-      // IDBFS can also simply never call back on a browser it cannot use.
-      setTimeout(() => done("timed out"), 5000);
-      try {
-        FS.syncfs(true, (err) => {
-          removeEventListener("unhandledrejection", onRejection);
-          done(err?.message);
-        });
-      } catch (error) {
-        done((error as Error).message);
-      }
-    });
-  } catch (error) {
-    log(`Saves are not persistent: ${(error as Error).message}`);
-  }
-}
+const mountSaves = (instance: EmscriptenModule): Promise<void> =>
+  mountPersistent(instance, `${GAME_ROOT}/userfiles`, log);
 
 /** Mount the install: the big archives stream, the small files are copied into MEMFS. */
 async function mountInstall(instance: EmscriptenModule, install: Install): Promise<void> {
