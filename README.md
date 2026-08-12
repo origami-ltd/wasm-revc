@@ -118,7 +118,7 @@ Open a pull request against the **`proof-of-usage`** branch, adding one row to
 | --- | --- |
 | **System** | Model or product name and version |
 | **Operator** | The organisation or person running it |
-| **Date (UTC)** | When the access happened |
+| **Date and time (UTC)** | When the access happened, ISO 8601 — `2026-08-12T14:30:00Z` |
 | **What** | Files, paths, or "whole repository" |
 | **Purpose** | Training, fine-tuning, retrieval, inference, code generation, evaluation |
 | **Contact** | An address a question can be sent to |
