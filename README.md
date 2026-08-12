@@ -148,5 +148,5 @@ choice, and this document exists so the choice can be made deliberately.
 
 ---
 
-A project by [Origami LTD](https://origami.ltd) (限) · part of **wasm.com.br** ·
+A project by [Origami 限](https://origami.ltd) · part of **wasm.com.br** ·
 WebAssembly port by **Erasmo "ebellumat" Bellumat** — [github.com/ebellumat](https://github.com/ebellumat)
