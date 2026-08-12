@@ -134,17 +134,39 @@ CText::Get(const char *key)
 #endif
 
 #ifdef MORE_LANGUAGES
-	// A key this port adds is in no shipped GXT and in no fan translation either, so every
-	// language rendered it as "FEL_POR MISSING". A language's own name is the one string that
-	// should not depend on which language is loaded - it reads the same in all of them - so it
-	// is built in rather than looked up.
+	// Every row of the language menu names itself, in itself, whichever language is loaded.
 	//
-	// wchar here is the game's own 16-bit character, not wchar_t, and it is spelled without the
-	// accent on purpose: the stock EFIGS font has no glyph for E-circumflex, so a translation is
-	// not required for the entry to be readable.
-	if (!result && strcmp(key, "FEL_POR") == 0) {
-		static wchar portuguese[] = { 'P', 'O', 'R', 'T', 'U', 'G', 'U', 'E', 'S', '\0' };
-		return portuguese;
+	// The GXTs translate the names instead - the Portuguese one calls French "Frances" - and a
+	// name translated into a language you cannot read is no help to the one person who needs
+	// that row. Worse, the Portuguese fan translation is american.gxt with its strings replaced,
+	// so its FEL_ENG reads "Portugues": in Portuguese the list showed Portuguese twice and
+	// English not at all. FEL_POR is on top of that a key this port adds, present in no GXT at
+	// all, so it rendered as "FEL_POR MISSING" everywhere.
+	//
+	// The high bytes are the game's own character set, not Latin-1: 0x9c c-cedilla, 0x9f
+	// e-circumflex, 0xae n-tilde. Russian and Japanese are left to the GXT - their names need
+	// their own fonts, and those code points draw as Cyrillic under the Russian font.
+	static const struct { const char *key; const wchar name[12]; } endonyms[] = {
+		{ "FEL_ENG", { 'E','n','g','l','i','s','h','\0' } },
+		{ "FEL_FRE", { 'F','r','a','n',0x9c,'a','i','s','\0' } },
+		{ "FEL_GER", { 'D','e','u','t','s','c','h','\0' } },
+		{ "FEL_ITA", { 'I','t','a','l','i','a','n','o','\0' } },
+		{ "FEL_SPA", { 'E','s','p','a',0xae,'o','l','\0' } },
+		{ "FEL_POR", { 'P','o','r','t','u','g','u',0x9f,'s','\0' } },
+	};
+	for (int i = 0; i < ARRAY_SIZE(endonyms); i++)
+		if (strcmp(key, endonyms[i].key) == 0)
+			return (wchar*)endonyms[i].name;
+
+	// Russian and Japanese keep whatever the loaded GXT calls them, and fall back to the English
+	// name only where the GXT has no such key at all - the Portuguese translation does not, and
+	// that row read "FEL_RUS MISSING". Their own names cannot go here: they are spelled in code
+	// points that only their own font draws as Cyrillic or kana.
+	if (!result) {
+		static const wchar russian[] = { 'R','u','s','s','i','a','n','\0' };
+		static const wchar japanese[] = { 'J','a','p','a','n','e','s','e','\0' };
+		if (strcmp(key, "FEL_RUS") == 0) return (wchar*)russian;
+		if (strcmp(key, "FEL_JAP") == 0) return (wchar*)japanese;
 	}
 #endif
 
