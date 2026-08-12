@@ -212,7 +212,15 @@ CustomFrontendOptionsPopulate(void)
 #define MINI_CASE_SENSITIVE
 #include "ini.h"
 
+#ifdef __EMSCRIPTEN__
+// In userfiles, because that is the one directory the page keeps. Everything else the engine can
+// see is an in-memory filesystem that dies with the tab, so an .ini written beside the game data
+// was read back exactly once - never - and every option the player set was gone on reload. This
+// is the same directory the saves are in, which is mounted on IndexedDB and flushed after writes.
+mINI::INIFile ini("userfiles/reVC.ini");
+#else
 mINI::INIFile ini("reVC.ini");
+#endif
 mINI::INIStructure cfg;
 
 bool ReadIniIfExists(const char *cat, const char *key, uint32 *out)
@@ -499,6 +507,9 @@ void SaveINIControllerSettings()
 
 bool LoadINISettings()
 {
+#ifdef __EMSCRIPTEN__
+	CFileMgr::SetDir("");   // the ini path is relative to the install root, not to userfiles
+#endif
 	if (!ini.read(cfg))
 		return false;
 
@@ -611,6 +622,9 @@ bool LoadINISettings()
 
 void SaveINISettings()
 {
+#ifdef __EMSCRIPTEN__
+	CFileMgr::SetDir("");   // the ini path is relative to the install root, not to userfiles
+#endif
 #ifdef IMPROVED_VIDEOMODE
 	StoreIni("VideoMode", "Width", FrontEndMenuManager.m_nPrefsWidth);
 	StoreIni("VideoMode", "Height", FrontEndMenuManager.m_nPrefsHeight);

@@ -155,6 +155,64 @@ void _psCreateFolder(const char *path)
 #endif
 }
 
+#ifdef __EMSCRIPTEN__
+/*
+ * Start in the player's own language the first time, instead of English.
+ *
+ * A desktop build asks the OS; there is no OS here, and the browser's answer - the languages the
+ * player told it they read - is a better one anyway. It is only ever consulted when no settings
+ * file exists, so the moment the player picks a language in Options that choice wins forever.
+ *
+ * A translation is only offered if its GXT is actually in the install: Portuguese is a file the
+ * player has to have added themselves, and selecting a language whose text is missing leaves the
+ * game showing nothing but key names.
+ */
+static void viceLanguageFromBrowser(void)
+{
+    // LoadSettings leaves the working directory in userfiles, and the GXT check below is relative
+    // to the install root - without this it never finds a translation and always says English.
+    CFileMgr::SetDir("");
+
+    int lang = EM_ASM_INT({
+        var tags = (navigator.languages && navigator.languages.length ? navigator.languages
+                                                                     : [navigator.language || "en"]);
+        var tag = String(tags[0]).toLowerCase();
+        if (tag.indexOf("pt") === 0) return 8;   // LANGUAGE_PORTUGUESE
+        if (tag.indexOf("fr") === 0) return 1;
+        if (tag.indexOf("de") === 0) return 2;
+        if (tag.indexOf("it") === 0) return 3;
+        if (tag.indexOf("es") === 0) return 4;
+        if (tag.indexOf("ru") === 0) return 6;   // LANGUAGE_RUSSIAN
+        if (tag.indexOf("ja") === 0) return 7;   // LANGUAGE_JAPANESE
+        return 0;                                 // LANGUAGE_AMERICAN
+    });
+
+    static const struct { int lang; const char *gxt; } extras[] = {
+        { CMenuManager::LANGUAGE_PORTUGUESE, "text/portuguese.gxt" },
+        { CMenuManager::LANGUAGE_RUSSIAN,    "text/russian.gxt" },
+        { CMenuManager::LANGUAGE_JAPANESE,   "text/japanese.gxt" },
+    };
+    for (int i = 0; i < ARRAY_SIZE(extras); i++) {
+        if (lang != extras[i].lang)
+            continue;
+        int fd = CFileMgr::OpenFile(extras[i].gxt, "r");
+        if (fd)
+            CFileMgr::CloseFile(fd);
+        else
+            lang = CMenuManager::LANGUAGE_AMERICAN;
+    }
+
+    if (lang == FrontEndMenuManager.m_PrefsLanguage)
+        return;
+
+    debug("Browser language selected: %d\n", lang);
+    FrontEndMenuManager.m_PrefsLanguage = lang;
+    FrontEndMenuManager.m_bFrontEnd_ReloadObrTxtGxt = true;
+    FrontEndMenuManager.InitialiseChangedLanguageSettings();
+    FrontEndMenuManager.SaveSettings();
+}
+#endif
+
 /*
  *****************************************************************************
  */
@@ -393,7 +451,24 @@ psInitialize(void)
     _dwOperatingSystemVersion = OS_WINXP; // To fool other classes
 
 #ifndef PS2_MENU
+#ifdef __EMSCRIPTEN__
+    // Whether the player has ever saved settings decides whether the browser gets to pick the
+    // language. reVC.ini is where settings live with LOAD_INI_SETTINGS - gta_vc.set is not written
+    // at all in that build, so testing for it said "first run" on every single boot and the
+    // browser overrode the player's own choice forever.
+    bool viceFirstRun;
+    {
+        int fd = CFileMgr::OpenFile("userfiles/reVC.ini", "r");
+        viceFirstRun = fd == 0;
+        if (fd)
+            CFileMgr::CloseFile(fd);
+    }
+#endif
     FrontEndMenuManager.LoadSettings();
+#ifdef __EMSCRIPTEN__
+    if (viceFirstRun)
+        viceLanguageFromBrowser();
+#endif
 #endif
 
 #if defined(__EMSCRIPTEN__)
