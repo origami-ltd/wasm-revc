@@ -318,7 +318,12 @@ enum Config {
 #define ASPECT_RATIO_SCALE	// Not just makes everything scale with aspect ratio, also adds support for all aspect ratios
 #define PROPER_SCALING		// use original DEFAULT_SCREEN_WIDTH/DEFAULT_SCREEN_HEIGHT from PS2 instead of PC(R* changed HEIGHT here to make radar look better, but broke other hud elements aspect ratio).
 #define DEFAULT_NATIVE_RESOLUTION	// Set default video mode to your native resolution (fixes Windows 10 launch)
+#ifndef __EMSCRIPTEN__
 #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
+#endif	// In the browser this trade is backwards: it reads the whole 312 MB gta3.img up front to
+	// build a ~200 MB models/txd.img cache, which over HTTP takes minutes and then lives in the
+	// wasm heap for the rest of the session. Reading textures straight out of gta3.img on demand
+	// is what the streaming layer is for.
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
 #define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time

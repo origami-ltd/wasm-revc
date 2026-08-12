@@ -1539,9 +1539,19 @@ Render2dStuffAfterFade(void)
 	POP_RENDERGROUP();
 }
 
+#ifdef __EMSCRIPTEN__
+/* Idle() is where CGame::Process lives. The outer loop can spin at 70 fps while this never runs,
+   which renders a static unlit world — indistinguishable from a broken renderer. */
+int gViceIdleCount = 0;
+extern "C" EMSCRIPTEN_KEEPALIVE int ViceIdleCount(void) { return gViceIdleCount; }
+#endif
+
 void
 Idle(void *arg)
 {
+#ifdef __EMSCRIPTEN__
+	gViceIdleCount++;
+#endif
 	CTimer::Update();
 
 	tbInit();
