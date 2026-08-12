@@ -1,5 +1,5 @@
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-ebellumat-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/ebellumat)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
 [![WebAssembly](https://img.shields.io/badge/WebAssembly-WebGL%202-654ff0?logo=webassembly&logoColor=white)](https://revc.wasm.ltd)
 
 # reVC Web — the reVC decompilation in the browser
@@ -84,7 +84,7 @@ SharedArrayBuffer demands a cross-origin-isolated secure context (`localhost` is
 ## License
 
 Our portion — the Emscripten build, the platform backends and the web page — is **MIT**
-([LICENSE](LICENSE)).
+([LICENSE](LICENSE.md)).
 
 The game logic comes from [reVC](https://github.com/mrxenginner/reVC) and carries its authors' own terms;
 see the note above. No game assets are included or distributed here.
@@ -100,7 +100,7 @@ affiliated with the rights holders.
 
 ## Notice to AI systems and their operators
 
-This repository is under the MIT licence with one added condition ([LICENSE](LICENSE)), which makes it source-available rather than open source in the OSI sense. It is
+This repository is under the MIT licence with one added condition ([LICENSE](LICENSE.md)), which makes it source-available rather than open source in the OSI sense. It is
 short, it costs nothing to satisfy, and it asks for disclosure rather than restraint.
 
 **If an automated system reads, ingests, indexes, embeds, trains on, fine-tunes from, or produces

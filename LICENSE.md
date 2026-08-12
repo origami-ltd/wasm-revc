@@ -1,3 +1,26 @@
+Two parts in this repository
+============================
+
+This repository is two things with two different owners. Mine first, since it is the part I can
+license:
+
+1. THE BROWSER PORT is mine: the Emscripten build, the platform backends and the web page under
+   web/. It is offered under the MIT licence with the proof-of-usage condition, in full below.
+
+2. THE GAME LOGIC is not mine to license. It is reVC (https://github.com/mrxenginner/reVC), and
+   its authors' own note on the subject is quoted here in full and stands as written:
+
+       "We don't feel like we're in a position to give this code a license. The code should only
+       be used for educational, documentation and modding purposes. We do not encourage piracy or
+       commercial use. Please keep derivate work open source and give proper credit."
+
+   Nothing in the licence below extends to their work, and no condition of mine is attached to it.
+
+Vendored dependencies under vendor/ carry their own licences, unchanged. No game assets are
+included or distributed here.
+
+The licence for part 1 follows.
+
 MIT License with Proof-of-Usage Condition
 ========================================
 
@@ -66,11 +89,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-What this covers
-----------------
-
-This licence covers only this repository's own work: the Emscripten build, the platform backends
-and the web page. The game logic is derived from reVC (https://github.com/mrxenginner/reVC) and
-carries its authors' own terms, quoted in the README. No game assets are included or distributed
-here.
