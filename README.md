@@ -21,6 +21,11 @@ starts from a working foundation instead of from zero.
 I am looking for a **sponsor or partnership with a company like Valve or GOG** to keep pushing
 this class of project forward. If that's you: [lbj.erasmo@gmail.com](mailto:lbj.erasmo@gmail.com).
 
+### Also in the initiative
+
+- **PROTON + WINE have been ported to WebAssembly**, extending this beyond source-available
+  games — **Dino Crisis (GOG) is already playable** through it.
+
 ## Built on reVC
 
 This is a WebAssembly port of **[reVC](https://github.com/mrxenginner/reVC)**, not a new decompilation.
@@ -57,7 +62,7 @@ brew install emscripten cmake
 REVC_AUDIO=OAL ./scripts/build-web.sh
 
 # page (TypeScript + Tailwind), from the wasm.com.br workspace root
-npm run build --workspace @wasm/vicecity-web
+npm run build --workspace @wasm/vice-web
 
 # serve it locally
 ./scripts/serve-web.py --install ~/GTAVC
