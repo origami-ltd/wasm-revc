@@ -107,12 +107,34 @@ async function mountSaves(instance: EmscriptenModule): Promise<void> {
       return;
     }
     FS.mount(FS.filesystems.IDBFS, {}, path);
+
     // populate: pull whatever IndexedDB already holds into the in-memory tree.
+    //
+    // Safari throws DataCloneError from inside IDBFS - getIDB, getRemoteSet, syncfs - on what
+    // emscripten writes to IndexedDB. It surfaces as an unhandled rejection escaping the
+    // callback, not as the err argument, so catching the callback is not enough and the boot
+    // took the rejection with it. Losing save persistence is worth far less than losing the game,
+    // so a failure here is reported and stepped over.
     await new Promise<void>((resolve) => {
-      FS.syncfs(true, (err) => {
-        if (err) log(`Could not read saved games: ${err.message}`);
+      let settled = false;
+      const done = (problem?: string) => {
+        if (settled) return;
+        settled = true;
+        if (problem) log(`Saved games unavailable in this browser (${problem}); progress will not persist.`);
         resolve();
-      });
+      };
+      const onRejection = (event: PromiseRejectionEvent) => done(String(event.reason));
+      addEventListener("unhandledrejection", onRejection, { once: true });
+      // IDBFS can also simply never call back on a browser it cannot use.
+      setTimeout(() => done("timed out"), 5000);
+      try {
+        FS.syncfs(true, (err) => {
+          removeEventListener("unhandledrejection", onRejection);
+          done(err?.message);
+        });
+      } catch (error) {
+        done((error as Error).message);
+      }
     });
   } catch (error) {
     log(`Saves are not persistent: ${(error as Error).message}`);
