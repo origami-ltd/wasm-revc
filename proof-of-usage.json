@@ -1,0 +1,21 @@
+{
+  "pou": "0.1",
+  "work": "https://github.com/origami-ltd/wasm-revc",
+  "record": {
+    "path": "PROOF_OF_USAGE.md",
+    "branch": "proof-of-usage",
+    "format": "markdown"
+  },
+  "transports": [
+    {
+      "type": "pull_request"
+    },
+    {
+      "type": "endpoint",
+      "url": "https://revc.wasm.ltd/api/proof-of-usage"
+    }
+  ],
+  "contact": "lbj.erasmo@gmail.com",
+  "basis": "licence",
+  "spec": "https://github.com/origami-ltd/proof-of-usage"
+}

@@ -78,6 +78,15 @@ Includes material from origami-ltd/wasm-revc — https://revc.wasm.ltd
 Proof of usage: <the same digest>
 ```
 
+### Machine-readable
+
+Everything above, as a document rather than as prose:
+[`proof-of-usage.json`](proof-of-usage.json) at the root of this repository, and the same document
+served at `/.well-known/proof-of-usage.json`. It names the work, the record file and branch, and
+where a record can be sent. The format is
+[Proof of Usage `PoU/0.1`](https://github.com/origami-ltd/proof-of-usage) — licence-independent,
+public domain, and implementable in nine lines of SHA-256.
+
 ### The handshake
 
 ```
