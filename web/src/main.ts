@@ -98,8 +98,49 @@ const streamer = new ArchiveStreamer(log);
  * push it out again. Shared with Generals, which mounts its user data the same way and has to
  * survive the same Safari failure.
  */
-const mountSaves = (instance: EmscriptenModule): Promise<void> =>
-  mountPersistent(instance, `${GAME_ROOT}/userfiles`, log);
+const mountSaves = async (instance: EmscriptenModule): Promise<void> => {
+  await mountPersistent(instance, `${GAME_ROOT}/userfiles`, log);
+  reportSaves(instance);
+};
+
+/**
+ * Say what came back from IndexedDB, in the runtime log on the page.
+ *
+ * A save that goes wrong takes the boot with it, and a player whose game will not start cannot be
+ * asked to open a console and type — by then there is nothing running to type at. So the shell
+ * says it out loud, every boot, before the engine gets a chance to fail: which files are in the
+ * one directory that persists, and how big they are.
+ *
+ * A save is around 200 KB. A slot listed at a few hundred bytes, a `.bak` next to it, or nothing
+ * here at all after the player saved, each says something different about where it went wrong.
+ */
+function reportSaves(instance: EmscriptenModule): void {
+  const path = `${GAME_ROOT}/userfiles`;
+  try {
+    const FS = instance.FS as unknown as {
+      readdir(p: string): string[];
+      stat(p: string): { size: number; mode: number };
+      isDir(mode: number): boolean;
+    };
+    const names = FS.readdir(path).filter((name) => name !== "." && name !== "..");
+    if (names.length === 0) {
+      log("Saved data: nothing in userfiles yet.");
+      return;
+    }
+    const entries = names.map((name) => {
+      try {
+        const info = FS.stat(`${path}/${name}`);
+        // Bytes, not a rounded MB: the interesting sizes here are the ones a MB reads as zero.
+        return FS.isDir(info.mode) ? `${name}/ (directory)` : `${name} ${info.size} bytes`;
+      } catch {
+        return `${name} (unreadable)`;
+      }
+    });
+    log(`Saved data in userfiles: ${entries.join(", ")}`);
+  } catch (error) {
+    log(`Could not list userfiles: ${(error as Error).message}`);
+  }
+}
 
 /** Mount the install: the big archives stream, the small files are copied into MEMFS. */
 async function mountInstall(instance: EmscriptenModule, install: Install): Promise<void> {

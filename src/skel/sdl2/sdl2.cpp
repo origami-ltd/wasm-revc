@@ -219,7 +219,35 @@ static void viceLanguageFromBrowser(void)
 const char *_psGetUserFilesFolder()
 {
     static char szUserFiles[256];
+#ifdef __EMSCRIPTEN__
+    /*
+     * Absolute, because a relative one is resolved against the working directory, and the working
+     * directory at save time is wherever the last thing to read a file left it.
+     *
+     * Every save path in the game is built from this string - SetSaveDirectory bakes it into
+     * DefaultPCSaveFileName once, and SaveSlot, PopulateSlotInfo, DeleteSlot, CheckDataNotCorrupt
+     * and GetSaveType all open relative to it. On a desktop that is harmless: the whole tree is on
+     * disk and a save that lands one directory over is still a file. Here exactly one path is
+     * mounted on IndexedDB, and a save written anywhere else is in memory and gone with the tab.
+     * The player saw the save succeed and the slot appear, and found it missing or unreadable on
+     * the next visit - and _psCreateFolder below had quietly made a second userfiles wherever the
+     * write went, which is why it never looked like a failure.
+     *
+     * Forward slashes throughout: fcaseopen takes either, but _psCreateFolder calls realpath,
+     * which takes the backslash the root directory name ends with as part of a filename.
+     */
+    strncpy(szUserFiles, CFileMgr::GetRootDirName(), sizeof(szUserFiles) - 1);
+    szUserFiles[sizeof(szUserFiles) - 1] = '\0';
+    for (char *c = szUserFiles; *c; c++)
+        if (*c == '\\')
+            *c = '/';
+    size_t len = strlen(szUserFiles);
+    if (len == 0 || szUserFiles[len - 1] != '/')
+        strncat(szUserFiles, "/", sizeof(szUserFiles) - len - 1);
+    strncat(szUserFiles, "userfiles", sizeof(szUserFiles) - strlen(szUserFiles) - 1);
+#else
     strcpy(szUserFiles, "userfiles");
+#endif
     _psCreateFolder(szUserFiles);
     return szUserFiles;
 }
