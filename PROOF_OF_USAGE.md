@@ -6,11 +6,14 @@ read the repository repeatedly for the same purpose needs a single row covering 
 
 | System | Operator | Date and Time (UTC) | What | Purpose | Contact | Provenance Hash |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| ExampleModel v2 | AI Corp | 2026-08-12T14:30:00Z | whole repository | training | contact@aicorp.com | `471e3dc7467c3c9f83be8199e5ed76b2635a0aefc86b2e3679ffc836fc9c741c` |
 
-<!-- The example row hashes its own four fields against https://github.com/acme/widget, so it does
-     not match this repository - it is an illustration. Yours is checked: the workflow recomputes
-     it from the row and says so if it disagrees. -->
+<!-- Empty, and meant to be signed rather than filled in by its author. A row looks like this,
+     with the digest of its own four fields in backticks:
+
+     | ExampleModel v2 | AI Corp | 2026-08-12T14:30:00Z | whole repository | training | ai@corp.com | `<hash>` |
+
+     It sits in a comment because a sample row inside the table is a record of something that never
+     happened, and any tool checking this file would rightly call it a mismatch. -->
 
 ## The handshake
 
