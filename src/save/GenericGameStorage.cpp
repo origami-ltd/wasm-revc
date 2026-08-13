@@ -696,6 +696,14 @@ enum
 	SAVE_TYPE_STEAM = 16,
 };
 
+// The layout this build itself reads and writes. Conversion is for saves from somewhere else.
+#ifdef _MSC_VER
+#define SAVE_TYPE_NATIVE_ABI	SAVE_TYPE_MSVC
+#else
+#define SAVE_TYPE_NATIVE_ABI	SAVE_TYPE_GCC
+#endif
+#define SAVE_TYPE_NATIVE_WORD	(sizeof(void*) == 4 ? SAVE_TYPE_32_BIT : SAVE_TYPE_64_BIT)
+
 uint8
 GetSaveType(char *savename)
 {
@@ -1050,7 +1058,17 @@ FixScriptPaths(uint8 save_type, uint8 *buf, uint8 *buf2, uint32 *size)
 bool
 FixSave(int32 slot, uint8 save_type)
 {
-	if (save_type & SAVE_TYPE_32_BIT && save_type & SAVE_TYPE_MSVC && !(save_type & SAVE_TYPE_STEAM))
+	// Leave alone anything already in this build's own layout.
+	//
+	// This used to name x86 MSVC specifically, which is the layout the original game writes - a
+	// safe assumption while the only binary reading the file was that one. It is wrong for every
+	// build compiled by anything else, this port included: the game wrote a 32-bit GCC save, the
+	// next boot read it back as foreign, and FixGarages rewrote its garage block into the MSVC
+	// layout - 7340 bytes where the engine expects 7020. The save came back mangled, and the
+	// original survived only as the .bak this function leaves behind. It happened at frontend
+	// init, before the player touched anything, so one saved game was enough to break every boot
+	// after it.
+	if (save_type & SAVE_TYPE_NATIVE_WORD && save_type & SAVE_TYPE_NATIVE_ABI && !(save_type & SAVE_TYPE_STEAM))
 		return true;
 
 	bool success = false;

@@ -113,6 +113,11 @@ C_PcSave::PopulateSlotInfo()
 			wchar FileName[24];
 			SYSTEMTIME SaveDateTime;
 		} header;
+#ifdef FIX_BUGS
+		// Read below without checking how much came back, so a file shorter than the header leaves
+		// the rest of this as whatever was on the stack - including the month the switch runs on.
+		memset(&header, 0, sizeof(header));
+#endif
 		sprintf(savename, "%s%i%s", DefaultPCSaveFileName, i + 1, ".b");
 		int file = CFileMgr::OpenFile(savename, "rb");
 		if (file != 0) {
@@ -151,7 +156,15 @@ C_PcSave::PopulateSlotInfo()
 				case 10: month = "OCT"; break;
 				case 11: month = "NOV"; break;
 				case 12: month = "DEC"; break;
+#ifdef FIX_BUGS
+				// re3_assert prints and returns here - the assert it ends in is the libc one, and
+				// NDEBUG makes that a no-op - so control falls through with month never assigned,
+				// and a garbage pointer goes straight to TheText.Get. A save whose date does not
+				// survive the round trip should cost the player the date, not the game.
+				default: month = "JAN"; break;
+#else
 				default: assert(0);
+#endif
 				}
 				char date[70];
 #ifdef MORE_LANGUAGES
