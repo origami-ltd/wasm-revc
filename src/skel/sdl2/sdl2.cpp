@@ -843,8 +843,30 @@ psSelectDevice()
         }
 
         if(bestFsMode < 0){
+#ifdef __EMSCRIPTEN__
+            /*
+             * Not a reason to give up here, and this is what killed the game one boot after the
+             * player changed anything.
+             *
+             * The loop only ever accepts an exclusive video mode, and on this platform those are
+             * the display list - the monitor's own modes. It wants the largest one no larger than
+             * m_nPrefsWidth/Height. On the first boot there is no settings file, so those are zero
+             * and the block above fills them from the desktop mode: something always matches. The
+             * moment a settings file exists they come back as the canvas size instead - 1280x720 -
+             * and on any display bigger than the canvas no monitor mode is that small. bestFsMode
+             * stayed -1, psSelectDevice returned FALSE, and the engine stopped before it started.
+             * Saving a game writes the settings too, which is why one save was enough, and why
+             * clearing the browser's storage was the only way back.
+             *
+             * Nothing downstream wants the answer anyway: GcurSelVM is pinned to 0 below, because
+             * a canvas is the only video mode there is, and the block after it sets the resolution
+             * from the Display menu's own list rather than from anything found here.
+             */
+            bestFsMode = 0;
+#else
             printf("WARNING: Cannot find desired video mode, selecting device cancelled\n");
             return FALSE;
+#endif
         }
         GcurSelVM = bestFsMode;
 
