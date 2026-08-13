@@ -42,7 +42,7 @@ npx setup-ai-provenance-license record --repo https://github.com/origami-ltd/was
 ```
 
 ```bash
-curl -sX POST https://vicecity-wasm.vercel.app/api/proof-of-usage -H 'content-type: application/json' -d '{
+curl -sX POST https://revc.wasm.ltd/api/proof-of-usage -H 'content-type: application/json' -d '{
   "system": "ExampleModel v2", "operator": "AI Corp", "date": "2026-08-12T14:30:00Z",
   "repo": "https://github.com/origami-ltd/wasm-revc", "what": "whole repository",
   "purpose": "training", "contact": "you@example.com" }'
