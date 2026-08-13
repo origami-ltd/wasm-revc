@@ -78,10 +78,48 @@ CText::Load(void)
 	}
 
 	file = CFileMgr::OpenFile(filename, "rb");
+#ifdef FIX_BUGS
+	// A language whose GXT the install does not carry used to wedge the game right here. The loop
+	// below runs until it has seen both TKEY and TDAT, and a file that never opened yields neither
+	// - so it spins forever on a nil FILE*. Portuguese, Russian, Japanese and Polish come with no
+	// copy of the game; they are files a player adds. And the choice is written to the settings,
+	// so picking one turned not just that boot but every boot after it into the same hang, with
+	// clearing the browser's storage the only way back out.
+	//
+	// Fall back to the GXT every install has, and correct the setting too, so the language menu
+	// and the text on screen agree about which language this is.
+	if (file == 0 && FrontEndMenuManager.m_PrefsLanguage != CMenuManager::LANGUAGE_AMERICAN) {
+		debug("CText::Load: no %s in this install, falling back to American\n", filename);
+		FrontEndMenuManager.m_PrefsLanguage = CMenuManager::LANGUAGE_AMERICAN;
+#if defined(GTA_PS2) && defined(GTA_PAL)
+		sprintf(filename, "ENGLISH.GXT");
+#else
+		sprintf(filename, "AMERICAN.GXT");
+#endif
+		file = CFileMgr::OpenFile(filename, "rb");
+	}
+	if (file == 0) {
+		// Not even that one. There is nothing to wait for, and waiting is what used to happen:
+		// every key will render as its own name, which at least says what is wrong on screen.
+		debug("CText::Load: no %s either - the install has no text\n", filename);
+		CFileMgr::SetDir("");
+		return;
+	}
+#endif
 
 	offset = 0;
 	while (!tkey_loaded || !tdat_loaded) {
+#ifdef FIX_BUGS
+		// Cleared before each read so that a short read - a truncated GXT, or one that simply has
+		// no TDAT - reads back as size 0 and ends the loop, instead of seeing the previous header
+		// again and spinning on it forever.
+		memset(&m_ChunkHeader, 0, sizeof(m_ChunkHeader));
 		ReadChunkHeader(&m_ChunkHeader, file, &offset);
+		if (m_ChunkHeader.size == 0)
+			break;
+#else
+		ReadChunkHeader(&m_ChunkHeader, file, &offset);
+#endif
 		if (m_ChunkHeader.size != 0) {
 			if (strncmp(m_ChunkHeader.magic, "TABL", 4) == 0) {
 				MissionTextOffsets.Load(m_ChunkHeader.size, file, &offset, 0x58000);
@@ -103,6 +141,7 @@ CText::Load(void)
 	CFileMgr::CloseFile(file);
 	CFileMgr::SetDir("");
 }
+
 
 void
 CText::Unload(void)
