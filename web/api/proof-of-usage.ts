@@ -8,5 +8,5 @@
 // one is named by this project's.
 //
 //   PROOF_OF_USAGE_GITHUB_TOKEN    a token that may fork and open pull requests
-//   PROOF_OF_USAGE_ENDPOINT_URL    https://vicecity-wasm.vercel.app/api/proof-of-usage
+//   PROOF_OF_USAGE_ENDPOINT_URL    https://revc.wasm.ltd/api/proof-of-usage
 export { default } from "@wasm/proof-of-usage";
