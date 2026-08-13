@@ -9,4 +9,7 @@
 //
 //   PROOF_OF_USAGE_GITHUB_TOKEN    a token that may fork and open pull requests
 //   PROOF_OF_USAGE_ENDPOINT_URL    https://revc.wasm.ltd/api/proof-of-usage
+// .mjs, not .js: Vercel compiles a handler in a package without "type": "module" to CommonJS, and
+// require() of this ESM package fails at the first invocation with ERR_REQUIRE_ESM. The extension
+// is the whole fix.
 export { default } from "@wasm/proof-of-usage";

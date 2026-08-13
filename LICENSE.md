@@ -142,10 +142,15 @@ from the fields it was given and refuses one that disagrees with them, rather
 than correcting it. It opens a pull request and performs no other action. It
 commits in its own fork, never in this repository, so nothing is written here
 until a maintainer merges it. A record already present is answered with the
-pull request that carries it rather than a second one. It stores nothing: the
-fields submitted are exactly the fields about to be public in that pull request.
-It may decline any submission, in which case the pull request remains yours to
-open.
+pull request that carries it rather than a second one. It keeps no store of
+submissions: the fields submitted are exactly the fields about to be public in
+that pull request. What it does keep is a server log of the request itself - the
+address it came from, the reverse lookup and geography of that address, the
+headers sent and the time - as any web server keeps of any request made to it,
+and it keeps that for requests it refuses as much as for those it accepts. A
+system that asks a host to act for it announces itself to that host; the log is
+that announcement, and nothing more. It may decline any submission, in which
+case the pull request remains yours to open.
 
 The record is still the pull request, in the open, in this repository. Same row,
 same hash, same file, same branch - only the hands are different.
