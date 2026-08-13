@@ -17,6 +17,10 @@
 // Named methods, not a default export: the Node runtime reads a default export as the old
 // (req, res) => void signature and discards whatever it returns, so a handler that answers with a
 // Response hangs until the 300-second timeout. Exporting POST and GET selects the fetch-style API.
+// The package it imports is .mjs for the same reason: node-file-trace copies the imported file
+// into the bundle but not the package.json beside it, so a .js file there loses its
+// "type": "module" and is read as CommonJS - and a CommonJS file provides no named exports to
+// import. The extension travels with the file; the package.json does not.
 import { handleProofOfUsage } from "@wasm/proof-of-usage";
 
 export const POST = handleProofOfUsage;
