@@ -21,6 +21,11 @@ const char *_psGetUserFilesFolder();
 struct myFILE
 {
 	bool isText;
+#ifdef __EMSCRIPTEN__
+	// Whether this handle could have changed anything on disk. CloseFile flushes IndexedDB, and
+	// only a write ever gives it something to flush - see the comment there.
+	bool isWrite;
+#endif
 	FILE *file;
 };
 
@@ -78,6 +83,9 @@ myfopen(const char *filename, const char *mode)
 	return 0;	// no free fd
 found:
 	myfiles[fd].isText = strchr(mode, 'b') == nil;
+#ifdef __EMSCRIPTEN__
+	myfiles[fd].isWrite = strpbrk(mode, "wa+") != nil;
+#endif
 	p = realmode;
 	while(*mode)
 		if(*mode != 't' && *mode != 'b')
@@ -335,11 +343,20 @@ CFileMgr::ReadLine(int fd, char *buf, int len)
 int
 CFileMgr::CloseFile(int fd)
 {
-	int result = myfclose(fd);
 #ifdef __EMSCRIPTEN__
 	// Every write in the game closes its file here, so this is the one place that catches saves,
 	// settings and stats alike without having to find each writer.
-	ViceSyncSaves();
+	//
+	// Reads are not writes, though, and this used to flush on both. The game opens and closes
+	// thousands of files - every IDE, every IPL, every model the streamer pulls in - and each one
+	// scheduled a walk of the whole IndexedDB mount on the main thread. That is the stutter:
+	// a sync landing in the middle of a frame, over and over, for data that never changed.
+	bool flush = myfiles[fd].isWrite;
+#endif
+	int result = myfclose(fd);
+#ifdef __EMSCRIPTEN__
+	if (flush)
+		ViceSyncSaves();
 #endif
 	return result;
 }
