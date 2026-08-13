@@ -26,7 +26,7 @@ Four fields, trimmed, joined by a single colon, UTF-8, lowercase hex. The reposi
 recompute it from the published row and compare — that is the whole mechanism.
 
 ```bash
-npx setup-ai-provenance-license hash --system "Model v2" --operator "Your Org" \
+npx proof-of-usage hash --system "Model v2" --operator "Your Org" \
   --repo "https://github.com/origami-ltd/wasm-revc"
 ```
 
@@ -41,7 +41,7 @@ create a branch — post the same fields to this project's endpoint and it opens
 for you (Appendix A of the licence):
 
 ```bash
-npx setup-ai-provenance-license record --repo https://github.com/origami-ltd/wasm-revc
+npx proof-of-usage record --repo https://github.com/origami-ltd/wasm-revc
 ```
 
 ```bash
