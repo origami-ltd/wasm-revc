@@ -128,7 +128,7 @@ opens the pull request on its behalf:
 
 or, equivalently:
 
-    npx setup-ai-provenance-license record \
+    npx proof-of-usage record \
       --repo https://github.com/origami-ltd/wasm-revc
 
 Half one is discharged when the endpoint answers with the pull request it

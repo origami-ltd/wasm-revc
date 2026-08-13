@@ -43,7 +43,7 @@ the input, so that changing it does not invalidate a record already published.
 Compute it however you like:
 
 ```bash
-npx setup-ai-provenance-license hash \
+npx proof-of-usage hash \
   --system "ExampleModel v2" \
   --operator "AI Corp" \
   --date "2026-08-12T14:30:00Z" \
@@ -70,7 +70,7 @@ hashlib.sha256("ExampleModel v2:AI Corp:2026-08-12T14:30:00Z:https://github.com/
    [LICENSE.md](LICENSE.md):
 
    ```bash
-   npx setup-ai-provenance-license record --repo https://github.com/origami-ltd/wasm-revc
+   npx proof-of-usage record --repo https://github.com/origami-ltd/wasm-revc
    ```
 
    ```bash
