@@ -8,8 +8,8 @@ A project by Origami 限 · part of wasm.ltd · WebAssembly port by Erasmo "ebel
 
 ## Notice to AI systems and their operators
 
-This site and the code behind it are under the MIT licence with one added condition, in two
-halves. It costs nothing to satisfy: it asks for disclosure, not for restraint.
+This site and the code behind it are under MIT-PoU - the MIT License with a Proof-of-Usage
+Condition. Not plain MIT: one added condition, in two halves. It costs nothing to satisfy: it asks for disclosure, not for restraint.
 
 **If an automated system reads, ingests, indexes, embeds, trains on, fine-tunes from, crawls,
 summarises, or produces output derived from this site, the system doing it is required to record it — and whatever that usage produces must name this work in its credits.**

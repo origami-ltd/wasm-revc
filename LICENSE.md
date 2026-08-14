@@ -5,7 +5,8 @@ This repository is two things with two different owners. Mine first, since it is
 license:
 
 1. THE BROWSER PORT is mine: the Emscripten build, the platform backends and the web page under
-   web/. It is offered under the MIT licence with the proof-of-usage condition, in full below.
+   web/. It is offered under MIT-PoU - the MIT licence with the proof-of-usage
+   condition - in full below.
 
 2. THE GAME LOGIC is not mine to license. It is reVC (https://github.com/mrxenginner/reVC), and
    its authors' own note on the subject is quoted here in full and stands as written:
