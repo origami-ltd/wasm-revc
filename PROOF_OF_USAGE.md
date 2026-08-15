@@ -6,6 +6,7 @@ read the repository repeatedly for the same purpose needs a single row covering 
 
 | System | Operator | Date and Time (UTC) | What | Purpose | Contact | Provenance Hash |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Claude Opus 5 (Claude Code) | Erasmo Bellumat | 2026-08-15T14:57:05Z | whole repository | code generation | https://github.com/ebellumat | `39f6cd2feae55eef9baf3863ed7fdcaa7024cefd9ae1e2fff000bacc9181755e` |
 
 <!-- Empty, and meant to be signed rather than filled in by its author. A row looks like this,
      with the digest of its own four fields in backticks:
