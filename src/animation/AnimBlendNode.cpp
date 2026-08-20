@@ -75,6 +75,11 @@ CAnimBlendNode::UpdateCompressed(CVector &trans, CQuaternion &rot, float weight)
 			CQuaternion rotA, rotB;
 			kfA->GetRotation(&rotA);
 			kfB->GetRotation(&rotB);
+			// Same local hemisphere correction as CalcDeltasCompressed, so
+			// the pair matches the theta/invSin computed there; storage is
+			// never modified (see the comment in CalcDeltasCompressed).
+			if(DotProduct(rotA, rotB) < 0.0f)
+				rotB = -rotB;
 			rot.Slerp(rotB, rotA, theta, invSin, t);
 			rot.Scale(blend);
 		}
@@ -237,8 +242,16 @@ CAnimBlendNode::CalcDeltasCompressed(void)
 	kfB->GetRotation(&rotB);
 	float cos = DotProduct(rotA, rotB);
 	if(cos < 0.0f){
+		// Compressed keyframes never went through RemoveQuaternionFlips at
+		// load, so correct the hemisphere locally for the theta below. Never
+		// write the flip back into the keyframes: the sequence is shared by
+		// every animation instance at any phase, and the loop seam (last->0)
+		// makes a stored flip cascade around the ring re-flipping the whole
+		// sequence every loop. (The old SetRotation(-rotB) wrote the original
+		// value back — a no-op — leaving theta computed from a flipped pair
+		// while UpdateCompressed slerped the raw pair: up to 180 degrees of
+		// error mid-interpolation on keepCompressed cutscene anims.)
 		rotB = -rotB;
-		kfB->SetRotation(-rotB);
 	}
 	cos = DotProduct(rotA, rotB);
 	if(cos > 1.0f)
