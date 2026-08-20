@@ -19,11 +19,16 @@ C_PcSave PcSaveHelper;
 void
 C_PcSave::SetSaveDirectory(const char *path)
 {
-#if defined ANDROID
+#if defined _WIN32
+    sprintf(DefaultPCSaveFileName, "%s\\%s", path, "GTAVCsf");
+#else
+	// Forward slash on every POSIX filesystem. The backslash branch reached
+	// the emscripten build too, where "userfiles\GTAVCsf1.b" is a literal
+	// FILENAME in the install root: saves landed outside the persistent
+	// userfiles/ IDBFS mount (silently lost on tab close) and the load menu
+	// probed paths that cannot exist.
 	sprintf(DefaultPCSaveFileName, "%s/%s", path, "GTAVCsf");
     debug("SetSaveDirectory: %s", DefaultPCSaveFileName);
-#else
-    sprintf(DefaultPCSaveFileName, "%s\\%s", path, "GTAVCsf");
 #endif
 }
 
